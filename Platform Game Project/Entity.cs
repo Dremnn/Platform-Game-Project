@@ -45,6 +45,19 @@ namespace Platform_Game_Project
             }
         }
 
+        protected void AnimateOnce()
+        {
+            if (!animations.ContainsKey(currentAnimKey) || animations[currentAnimKey].Count == 0) return;
+            frameTimer++;
+            if (frameTimer >= frameDelay)
+            {
+                frameTimer = 0;
+                if (currentFrame < animations[currentAnimKey].Count - 1)
+                    currentFrame++;
+                // Không tăng nữa khi đến frame cuối — dừng lại
+            }
+        }
+
         protected bool IsLastFrame()
         {
             if (!animations.ContainsKey(currentAnimKey)) return false;

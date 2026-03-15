@@ -32,6 +32,7 @@ namespace Platform_Game_Project
             enemies = new List<Enemy>
             {
                 new MeleeSkeleton(500, 400, 2),   // Thêm enemy qua List
+                new Slime(550, 400, 3),
             };
         }
 
@@ -96,23 +97,27 @@ namespace Platform_Game_Project
         {
             foreach (var enemy in enemies)
             {
-                if (enemy.IsDead) continue;
+                // Bỏ if (enemy.IsDead) continue
+                // Dead state vẫn cần Update() để chạy AnimateOnce()
 
-                enemy.UpdateAI(player);
-                enemy.Update(GRAVITY);
+                if (enemy.CurrentState != EnemyState.Dead)
+                    enemy.UpdateAI(player);
 
-                // Collision platform — giống player
-                if (enemy.hurtBox.IntersectsWith(platform))
+                enemy.Update(GRAVITY); // Luôn gọi kể cả khi Dead
+
+                if (enemy.CurrentState != EnemyState.Dead)
                 {
-                    enemy.Bounds.Y = platform.Y - enemy.Bounds.Height;
-                    enemy.VelocityY = 0;
-                    enemy.IsOnPlatform = true;
-                }
-                else
-                {
-                    enemy.IsOnPlatform = false;
+                    if (enemy.hurtBox.IntersectsWith(platform))
+                    {
+                        enemy.Bounds.Y = platform.Y - enemy.Bounds.Height;
+                        enemy.VelocityY = 0;
+                        enemy.IsOnPlatform = true;
+                    }
+                    else enemy.IsOnPlatform = false;
                 }
             }
+
+            enemies.RemoveAll(e => e.IsDeadAnimationDone);
         }
 
         private void HandleCombat()

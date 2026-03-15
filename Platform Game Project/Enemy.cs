@@ -16,9 +16,13 @@ namespace Platform_Game_Project
         public Rectangle ActiveHitbox;
         public bool IsHitboxActive = false;
         public bool HasHitPlayer = false;
-
-        protected int attackRangeSize = 10;
+        protected int moveSpeed = 2;
         protected int detectRangeSize = 300;
+
+        public bool IsDeadAnimationDone =>
+        CurrentState == EnemyState.Dead &&
+        currentFrame == animations[currentAnimKey].Count - 1 &&
+        frameTimer >= frameDelay - 1;
 
         protected Enemy(int x, int y, int width, int height, int hp, int scale)
             : base(x, y, width, height, hp, scale) { }
@@ -29,7 +33,8 @@ namespace Platform_Game_Project
 
         protected void TransitionTo(EnemyState newState, string animKey, int delay)
         {
-            if (CurrentState == newState) return;
+            if (CurrentState == newState && newState != EnemyState.Dead) return;
+
             CurrentState = newState;
             currentFrame = frameTimer = 0;
             frameDelay = delay;
@@ -41,11 +46,30 @@ namespace Platform_Game_Project
             if (IsDead) return;
             HP -= damage;
             KnockbackX = playerFacingLeft ? -knockback : knockback;
-            TransitionTo(EnemyState.Hurt, "Hurt", 3);
+
+            if (HP <= 0)
+            {
+                if (animations.ContainsKey("Dead") && animations["Dead"].Count > 0)
+                    TransitionTo(EnemyState.Dead, "Dead", 4);
+            }
+            else
+            {
+                if (animations.ContainsKey("Hurt") && animations["Hurt"].Count > 0)
+                    TransitionTo(EnemyState.Hurt, "Hurt", 3);
+                else
+                    TransitionTo(EnemyState.Idle, "Idle", 4);
+            }
         }
 
         public override void Update(int gravity)
         {
+            if (CurrentState == EnemyState.Dead)
+            {
+                // Chỉ chạy animation, không làm gì khác
+                AnimateOnce();
+                return;
+            }
+
             VelocityY += gravity;
             Bounds.Y += VelocityY;
             Bounds.X += KnockbackX;
