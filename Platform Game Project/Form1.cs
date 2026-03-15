@@ -1,34 +1,41 @@
 ﻿using System;
-using System.Numerics;
+using System.Collections.Generic;
+using System.Drawing;
+using System.Windows.Forms;
 
 namespace Platform_Game_Project
 {
     public partial class Form1 : Form
     {
-        Player player;
-        Enemy enemy;
-        Rectangle platform;
-        int gravity = 2;
+        // --- Fields ---
+        private Player player;
+        private List<Enemy> enemies;   // Dùng List để dễ thêm/xóa nhiều enemy
+        private Rectangle platform;
+        private const int GRAVITY = 2;
 
-        // Biến điều khiển
-        bool left, right, jump, lightAttack, dash;
+        private bool left, right, jump, lightAttack, dash;
 
         public Form1()
         {
             InitializeComponent();
             this.DoubleBuffered = true;
-
-            // Khởi tạo
-            player = new Player(100, 50, 5);
-            enemy = new Enemy(50, 400, 50, 50);
-            platform = new Rectangle(0, 450, 800, 50);
-
-            // Timer
+            InitGame();
             gameTimer.Interval = 20;
             gameTimer.Start();
-
         }
 
+        // --- Khởi tạo riêng, tách khỏi constructor ---
+        private void InitGame()
+        {
+            player = new Player(100, 50, 3);
+            platform = new Rectangle(0, 450, 800, 50);
+            enemies = new List<Enemy>
+            {
+                new MeleeSkeleton(500, 400, 2),   // Thêm enemy qua List
+            };
+        }
+
+        // --- Input ---
         private void Form1_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.KeyCode == Keys.A) left = true;
@@ -43,69 +50,130 @@ namespace Platform_Game_Project
             if (e.KeyCode == Keys.A) left = false;
             if (e.KeyCode == Keys.D) right = false;
             if (e.KeyCode == Keys.Space) jump = false;
-            //if (e.KeyCode == Keys.J) lightAttack = false;
         }
 
+        // --- Game Loop ---
         private void gameTimer_Tick(object sender, EventArgs e)
         {
-            // 1. Quyết định trạng thái
-            //player.HandleState(left || right, false);
+            UpdatePlayer();
+            UpdateEnemies();
+            HandleCombat();
+            ResetFrameInput();
+            this.Invalidate();
+        }
 
-            // 2. Cập nhật vị trí
+        private void UpdatePlayer()
+        {
+            // Chỉ cho phép di chuyển khi không đang trong animation tấn công
             int moveDir = 0;
-            if (player.CurrentState != PlayerState.LightAttack && player.CurrentState != PlayerState.HeavyAttack && player.CurrentState != PlayerState.DashAttack)
+            bool isAttacking = player.CurrentState == PlayerState.LightAttack
+                            || player.CurrentState == PlayerState.HeavyAttack
+                            || player.CurrentState == PlayerState.DashAttack;
+
+            if (!isAttacking)
             {
                 if (left) { moveDir = -1; player.FacingLeft = true; }
                 else if (right) { moveDir = 1; player.FacingLeft = false; }
             }
 
-            // Truyền (left || right) chính là biến isMoving bạn đang tìm
             player.HandleState(left || right, jump, dash, lightAttack, lightAttack);
+            player.Update(GRAVITY, moveDir);
 
-            dash = false;
-            lightAttack = false; // Reset sau khi đã xử lý
-
-            player.Update(gravity, moveDir);
-
-            // 3. Va chạm
+            // Va chạm với platform
             if (player.hurtBox.IntersectsWith(platform))
             {
                 player.Bounds.Y = platform.Y - player.Bounds.Height;
                 player.VelocityY = 0;
                 player.IsOnPlatform = true;
             }
-            else player.IsOnPlatform = false;
-
-            // 4. Xử lý va chạm sát thương
-            if (player.IsHitboxActive && !player.HasHitEnemy)
+            else
             {
-                if (player.ActiveHitbox.IntersectsWith(enemy.Hurtbox) && !enemy.IsDead)
-                {
-                    int damage = (player.CurrentState == PlayerState.HeavyAttack) ? 30 : 10;
-                    enemy.HP -= damage;
-                    player.HasHitEnemy = true; // Khóa lại, không cho gây thêm damage trong lần vung này
+                player.IsOnPlatform = false;
+            }
+        }
 
-                    // Thêm hiệu ứng rung màn hình hoặc đẩy lùi (Knockback) ở đây
-                    enemy.Hurtbox.X += player.FacingLeft ? -20 : 20;
+        private void UpdateEnemies()
+        {
+            foreach (var enemy in enemies)
+            {
+                if (enemy.IsDead) continue;
+
+                enemy.UpdateAI(player);
+                enemy.Update(GRAVITY);
+
+                // Collision platform — giống player
+                if (enemy.hurtBox.IntersectsWith(platform))
+                {
+                    enemy.Bounds.Y = platform.Y - enemy.Bounds.Height;
+                    enemy.VelocityY = 0;
+                    enemy.IsOnPlatform = true;
+                }
+                else
+                {
+                    enemy.IsOnPlatform = false;
+                }
+            }
+        }
+
+        private void HandleCombat()
+        {
+            // --- Player đánh Enemy ---
+            if (player.IsHitboxActive)
+            {
+                foreach (var enemy in enemies)
+                {
+                    if (enemy.IsDead) continue;
+                    if (!player.ActiveHitbox.IntersectsWith(enemy.hurtBox)) continue;
+                    if (player.HitEnemiesThisSwing.Contains(enemy)) continue;
+
+                    enemy.TakeDamage(player.CurrentAttackDamage, player.CurrentAttackKnockback, player.FacingLeft);
+                    player.HitEnemiesThisSwing.Add(enemy);
                 }
             }
 
-            // Reset hasHitEnemy khi player kết thúc đòn đánh hoặc chuyển sang đòn mới
-            if (player.CurrentState != PlayerState.LightAttack && player.CurrentState != PlayerState.HeavyAttack)
+            bool isAttacking = player.CurrentState == PlayerState.LightAttack
+                            || player.CurrentState == PlayerState.HeavyAttack
+                            || player.CurrentState == PlayerState.DashAttack;
+            if (!isAttacking) player.HitEnemiesThisSwing.Clear();
+
+            // --- Enemy đánh Player ---
+            foreach (var enemy in enemies)
             {
-                player.HasHitEnemy = false;
+                if (enemy.IsDead || !enemy.IsHitboxActive) continue;
+                if (enemy.HasHitPlayer) continue; // Đã đánh rồi thì bỏ qua
+                if (!enemy.ActiveHitbox.IntersectsWith(player.hurtBox)) continue;
+
+                player.TakeDamage(10, 15, enemy.FacingLeft);
+                enemy.HasHitPlayer = true;
             }
 
-            this.Invalidate();
+            // Reset khi enemy kết thúc đòn attack
+            foreach (var enemy in enemies)
+            {
+                if (enemy.CurrentState != EnemyState.Attack)
+                    enemy.HasHitPlayer = false;
+            }
         }
 
+        // Input dạng "vừa nhấn" chỉ sống 1 tick
+        private void ResetFrameInput()
+        {
+            dash = false;
+            lightAttack = false;
+        }
+
+        // --- Render ---
         private void Form1_Paint(object sender, PaintEventArgs e)
         {
-            e.Graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.NearestNeighbor;
-            // Vẽ sàn tạm bằng màu đen để test trước khi dùng ảnh
-            e.Graphics.FillRectangle(Brushes.Black, platform);
-            enemy.Draw(e.Graphics);
-            player.Draw(e.Graphics);
+            var g = e.Graphics;
+            g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.NearestNeighbor;
+
+            g.FillRectangle(Brushes.Black, platform);
+
+            foreach (var enemy in enemies)
+                enemy.Draw(g);
+
+            player.Draw(g);
         }
     }
 }
