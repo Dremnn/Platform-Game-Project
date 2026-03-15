@@ -19,7 +19,7 @@ namespace Platform_Game_Project
 
         protected Dictionary<string, List<Image>> animations = new Dictionary<string, List<Image>>();
         protected string currentAnimKey = "Idle";
-        protected int currentFrame = 0;
+        public int currentFrame = 0;
         protected int frameTimer = 0;
         protected int frameDelay = 6;
 
@@ -78,8 +78,17 @@ namespace Platform_Game_Project
         {
             List<Image> frames = new List<Image>();
             if (!Directory.Exists(path)) return frames;
-            foreach (var f in Directory.GetFiles(path, "*.png").OrderBy(f => f))
-                frames.Add(Image.FromFile(f));
+
+            var files = Directory.GetFiles(path, "*.png")
+                .OrderBy(f => {
+                    string name = Path.GetFileNameWithoutExtension(f);
+                    // Lấy số ở cuối tên file, ví dụ "Warrior_Death_10" -> 10
+                    var match = System.Text.RegularExpressions.Regex.Match(name, @"\d+$");
+                    return match.Success ? int.Parse(match.Value) : 0;
+                })
+                .ToList();
+
+            foreach (var file in files) frames.Add(Image.FromFile(file));
             return frames;
         }
 

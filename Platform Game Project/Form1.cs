@@ -5,6 +5,8 @@ using System.Windows.Forms;
 
 namespace Platform_Game_Project
 {
+    public enum GameScene { Menu, Playing, GameOver }
+
     public partial class Form1 : Form
     {
         // --- Fields ---
@@ -12,6 +14,7 @@ namespace Platform_Game_Project
         private List<Enemy> enemies;   // Dùng List để dễ thêm/xóa nhiều enemy
         private Rectangle platform;
         private const int GRAVITY = 2;
+        private GameScene currentScene = GameScene.Menu;
 
         private bool left, right, jump, lightAttack, dash;
 
@@ -31,7 +34,7 @@ namespace Platform_Game_Project
             platform = new Rectangle(0, 450, 800, 50);
             enemies = new List<Enemy>
             {
-                new MeleeSkeleton(500, 400, 2),   // Thêm enemy qua List
+                //new MeleeSkeleton(500, 400, 2),   // Thêm enemy qua List
                 new Slime(550, 400, 3),
             };
         }
@@ -39,11 +42,25 @@ namespace Platform_Game_Project
         // --- Input ---
         private void Form1_KeyDown(object sender, KeyEventArgs e)
         {
-            if (e.KeyCode == Keys.A) left = true;
-            if (e.KeyCode == Keys.D) right = true;
-            if (e.KeyCode == Keys.Space) jump = true;
-            if (e.KeyCode == Keys.J) lightAttack = true;
-            if (e.KeyCode == Keys.ShiftKey) dash = true;
+            switch (currentScene)
+            {
+                case GameScene.Menu:
+                    if (e.KeyCode == Keys.Enter) StartGame();
+                    break;
+
+                case GameScene.Playing:
+                    if (e.KeyCode == Keys.A) left = true;
+                    if (e.KeyCode == Keys.D) right = true;
+                    if (e.KeyCode == Keys.Space) jump = true;
+                    if (e.KeyCode == Keys.J) lightAttack = true;
+                    if (e.KeyCode == Keys.ShiftKey) dash = true;
+                    break;
+
+                case GameScene.GameOver:
+                    if (e.KeyCode == Keys.Enter) StartGame();   // Retry
+                    if (e.KeyCode == Keys.Escape) GoToMenu();   // Menu
+                    break;
+            }
         }
 
         private void Form1_KeyUp(object sender, KeyEventArgs e)
@@ -56,10 +73,24 @@ namespace Platform_Game_Project
         // --- Game Loop ---
         private void gameTimer_Tick(object sender, EventArgs e)
         {
-            UpdatePlayer();
-            UpdateEnemies();
-            HandleCombat();
-            ResetFrameInput();
+            switch (currentScene)
+            {
+                case GameScene.Menu:
+                    // Không cần update gì, chỉ chờ input
+                    break;
+
+                case GameScene.Playing:
+                    UpdatePlayer();
+                    UpdateEnemies();
+                    HandleCombat();
+                    ResetFrameInput();
+                    CheckGameOver();
+                    break;
+
+                case GameScene.GameOver:
+                    // Không cần update gì, chỉ chờ input
+                    break;
+            }
             this.Invalidate();
         }
 
@@ -71,7 +102,10 @@ namespace Platform_Game_Project
                             || player.CurrentState == PlayerState.HeavyAttack
                             || player.CurrentState == PlayerState.DashAttack;
 
-            if (!isAttacking)
+            bool isBeingAttacked = player.CurrentState == PlayerState.Hurt
+                                    || player.CurrentState == PlayerState.Dead;
+
+            if (!isAttacking && !isBeingAttacked)
             {
                 if (left) { moveDir = -1; player.FacingLeft = true; }
                 else if (right) { moveDir = 1; player.FacingLeft = false; }
@@ -170,15 +204,56 @@ namespace Platform_Game_Project
         // --- Render ---
         private void Form1_Paint(object sender, PaintEventArgs e)
         {
-            var g = e.Graphics;
+            switch (currentScene)
+            {
+                case GameScene.Menu: DrawMenu(e.Graphics); break;
+                case GameScene.Playing: DrawGame(e.Graphics); break;
+                case GameScene.GameOver: DrawGameOver(e.Graphics); break;
+            }
+        }
+
+        private void DrawMenu(Graphics g)
+        {
+            g.Clear(Color.Black);
+            g.DrawString("PRESS ENTER TO START",
+                new Font("Arial", 20), Brushes.White, 300, 200);
+        }
+
+        private void DrawGame(Graphics g)
+        {
             g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.NearestNeighbor;
-
             g.FillRectangle(Brushes.Black, platform);
-
-            foreach (var enemy in enemies)
-                enemy.Draw(g);
-
+            foreach (var enemy in enemies) enemy.Draw(g);
             player.Draw(g);
+            g.DrawString($"State: {player.CurrentState} | Frame: {player.currentFrame}",
+    new Font("Arial", 10), Brushes.White, 10, 10);
+        }
+
+        private void DrawGameOver(Graphics g)
+        {
+            g.Clear(Color.Black);
+            g.DrawString("GAME OVER",
+                new Font("Arial", 30), Brushes.Red, 300, 150);
+            g.DrawString("ENTER - Retry    ESC - Menu",
+                new Font("Arial", 16), Brushes.White, 250, 250);
+        }
+
+        private void StartGame()
+        {
+            InitGame(); // Reset toàn bộ
+            currentScene = GameScene.Playing;
+        }
+
+        private void GoToMenu()
+        {
+            currentScene = GameScene.Menu;
+        }
+
+        // Gọi khi player chết
+        private void CheckGameOver()
+        {
+            if (player.CurrentState == PlayerState.Dead && player.IsDeadAnimationDone)
+                currentScene = GameScene.GameOver;
         }
     }
 }

@@ -7,7 +7,7 @@ namespace Platform_Game_Project
     public enum PlayerState
     {
         Idle, Running, Jumping, Falling,
-        Dashing, Hurt,
+        Dashing, Hurt, Dead,
         LightAttack, HeavyAttack, DashAttack
     }
 
@@ -17,6 +17,10 @@ namespace Platform_Game_Project
         public Rectangle ActiveHitbox;
         public bool IsHitboxActive = false;
         public HashSet<Enemy> HitEnemiesThisSwing = new HashSet<Enemy>();
+        public bool IsDeadAnimationDone =>
+        CurrentState == PlayerState.Dead &&
+        currentFrame == animations[currentAnimKey].Count - 1 &&
+        frameTimer >= frameDelay - 1;
 
         // Combo
         private int comboTimer = 0;
@@ -67,10 +71,13 @@ namespace Platform_Game_Project
             animations["LightAttack"] = LoadFolder(Path.Combine(playerPath, "Light Attack"));
             animations["HeavyAttack"] = LoadFolder(Path.Combine(playerPath, "Heavy Attack"));
             animations["DashAttack"] = LoadFolder(Path.Combine(playerPath, "Dash Attack"));
+            animations["Dead"] = LoadFolder(Path.Combine(playerPath, "Dead"));
         }
 
         public void HandleState(bool isMoving, bool isJumping, bool isDashing, bool isLightAttacking, bool isDashAttacking)
         {
+            if (CurrentState == PlayerState.Dead) return;
+
             if (dashTimer > 0) dashTimer--;
             if (dashCooldownTimer > 0) dashCooldownTimer--;
             if (comboTimer > 0) comboTimer--;
@@ -117,6 +124,8 @@ namespace Platform_Game_Project
                     if (IsLastFrame())
                         TransitionTo(IsOnPlatform ? (isMoving ? PlayerState.Running : PlayerState.Idle)
                                                   : PlayerState.Falling);
+                    break;
+                case PlayerState.Dead:               
                     break;
                 case PlayerState.LightAttack:
                     if (IsLastFrame())
@@ -168,9 +177,12 @@ namespace Platform_Game_Project
         {
             if (HP <= 0) return;
             HP -= damage;
-            // Knockback cùng hướng enemy đang nhìn
             Bounds.X += enemyFacingLeft ? -knockback : knockback;
-            TransitionTo(PlayerState.Hurt);
+
+            if (HP <= 0)
+                TransitionTo(PlayerState.Dead);
+            else
+                TransitionTo(PlayerState.Hurt);
         }
 
         private void TransitionTo(PlayerState newState)
@@ -193,8 +205,9 @@ namespace Platform_Game_Project
                 PlayerState.Dashing => 3,
                 PlayerState.Hurt => 3,
                 PlayerState.LightAttack => 2,
-                PlayerState.HeavyAttack => 4,
+                PlayerState.HeavyAttack => 3,
                 PlayerState.DashAttack => 2,
+                PlayerState.Dead => 4,
                 _ => 6
             };
             currentAnimKey = newState.ToString();
@@ -207,6 +220,12 @@ namespace Platform_Game_Project
 
         public void Update(int gravity, int moveDir)
         {
+            if (CurrentState == PlayerState.Dead)
+            {
+                AnimateOnce(); // Chạy 1 lần rồi dừng, không loop
+                return;
+            }
+
             if (CurrentState == PlayerState.Dashing)
             {
                 Bounds.X += (FacingLeft ? -1 : 1) * DASH_SPEED;
