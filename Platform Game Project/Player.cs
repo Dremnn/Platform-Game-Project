@@ -52,7 +52,7 @@ namespace Platform_Game_Project
         };
 
         public Player(int x, int y, int scale)
-            : base(x, y, 64 , 44, hp: 100, scale)
+            : base(x, y, 64, 44, hp: 100, scale)
         {
             LoadAllAnimations();
         }
@@ -125,7 +125,7 @@ namespace Platform_Game_Project
                         TransitionTo(IsOnPlatform ? (isMoving ? PlayerState.Running : PlayerState.Idle)
                                                   : PlayerState.Falling);
                     break;
-                case PlayerState.Dead:               
+                case PlayerState.Dead:
                     break;
                 case PlayerState.LightAttack:
                     if (IsLastFrame())
@@ -222,20 +222,8 @@ namespace Platform_Game_Project
         {
             if (CurrentState == PlayerState.Dead)
             {
-                AnimateOnce(); // Chạy 1 lần rồi dừng, không loop
+                AnimateOnce();
                 return;
-            }
-
-            if (CurrentState == PlayerState.Dashing)
-            {
-                Bounds.X += (FacingLeft ? -1 : 1) * DASH_SPEED;
-                VelocityY = 0;
-            }
-            else
-            {
-                VelocityY += gravity;
-                Bounds.Y += VelocityY;
-                Bounds.X += moveDir * 15;
             }
 
             Animate();
@@ -266,7 +254,13 @@ namespace Platform_Game_Project
 
         public override void UpdateHurtbox()
         {
-            hurtBox = new Rectangle(Bounds.X + (FacingLeft ? 85 : 60), Bounds.Y + 40, Bounds.Width - 150, Bounds.Height - 40);
+            // Căn vào giữa sprite, bỏ vùng trống 2 bên
+            hurtBox = new Rectangle(
+                Bounds.X + (FacingLeft ? 85 : 60),
+                Bounds.Y + 40,
+                Bounds.Width - 150,
+                Bounds.Height - 40
+            );
         }
 
         public override void Draw(Graphics g)
@@ -276,8 +270,8 @@ namespace Platform_Game_Project
             DrawImage(g, animations[currentAnimKey][currentFrame]);
 
             g.DrawRectangle(Pens.Red, hurtBox);
-            if (IsHitboxActive) g.DrawRectangle(Pens.Yellow, ActiveHitbox);
             g.DrawRectangle(Pens.Cyan, Bounds);
+            if (IsHitboxActive) g.DrawRectangle(Pens.Yellow, ActiveHitbox);
 
             g.FillRectangle(Brushes.DarkRed, Bounds.X, Bounds.Y - 10, Bounds.Width, 6);
             g.FillRectangle(Brushes.LimeGreen, Bounds.X, Bounds.Y - 10,

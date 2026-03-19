@@ -28,6 +28,15 @@ namespace Platform_Game_Project
             Bounds = new Rectangle(x, y, width * scale, height * scale);
             HP = MaxHP = hp;
         }
+        public Rectangle GetFootBox()
+        {
+            return new Rectangle(
+                Bounds.X,
+                Bounds.Y + Bounds.Height - 8,
+                Bounds.Width,
+                8
+            );
+        }
 
         public abstract void Update(int gravity);
         public abstract void Draw(Graphics g);

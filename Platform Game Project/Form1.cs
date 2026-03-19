@@ -12,7 +12,7 @@ namespace Platform_Game_Project
         // --- Fields ---
         private Player player;
         private List<Enemy> enemies;   // Dùng List để dễ thêm/xóa nhiều enemy
-        private Rectangle platform;
+        private TiledMap map;
         private const int GRAVITY = 2;
         private GameScene currentScene = GameScene.Menu;
 
@@ -23,6 +23,12 @@ namespace Platform_Game_Project
             InitializeComponent();
             this.DoubleBuffered = true;
             InitGame();
+
+            // Resize window khớp với map: 30*16*3 x 20*16*3
+            this.ClientSize = new Size(30 * 16 * 3, 20 * 16 * 3); // 1440 x 960
+            this.FormBorderStyle = FormBorderStyle.FixedSingle;    // không resize được
+            this.MaximizeBox = false;
+
             gameTimer.Interval = 20;
             gameTimer.Start();
         }
@@ -30,12 +36,16 @@ namespace Platform_Game_Project
         // --- Khởi tạo riêng, tách khỏi constructor ---
         private void InitGame()
         {
+            string mapPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory,
+                                          "Assets", "Map", "map3.tmj");
+            map = new TiledMap(mapPath, scale: 3);
+
+            // Spawn thấp hơn để đứng trên ground đầu tiên
+            // Ground đầu tiên trong map2 ở y≈288 * scale3 = 864
             player = new Player(100, 50, 3);
-            platform = new Rectangle(0, 450, 800, 50);
-            enemies = new List<Enemy>
-            {
-                //new MeleeSkeleton(500, 400, 2),   // Thêm enemy qua List
-                new Slime(550, 400, 3),
+            enemies = new List<Enemy> { 
+                new Slime(800, 50, 3),
+                new MeleeSkeleton(1000,50,3) 
             };
         }
 
@@ -96,14 +106,12 @@ namespace Platform_Game_Project
 
         private void UpdatePlayer()
         {
-            // Chỉ cho phép di chuyển khi không đang trong animation tấn công
             int moveDir = 0;
             bool isAttacking = player.CurrentState == PlayerState.LightAttack
                             || player.CurrentState == PlayerState.HeavyAttack
                             || player.CurrentState == PlayerState.DashAttack;
-
             bool isBeingAttacked = player.CurrentState == PlayerState.Hurt
-                                    || player.CurrentState == PlayerState.Dead;
+                                || player.CurrentState == PlayerState.Dead;
 
             if (!isAttacking && !isBeingAttacked)
             {
@@ -112,42 +120,71 @@ namespace Platform_Game_Project
             }
 
             player.HandleState(left || right, jump, dash, lightAttack, lightAttack);
-            player.Update(GRAVITY, moveDir);
 
-            // Va chạm với platform
-            if (player.hurtBox.IntersectsWith(platform))
+            // Physics
+            if (player.CurrentState == PlayerState.Dashing)
             {
-                player.Bounds.Y = platform.Y - player.Bounds.Height;
+                player.Bounds.X += (player.FacingLeft ? -1 : 1) * 30;
                 player.VelocityY = 0;
-                player.IsOnPlatform = true;
             }
             else
             {
-                player.IsOnPlatform = false;
+                player.VelocityY += GRAVITY;
+                player.Bounds.Y += player.VelocityY;
+                player.Bounds.X += moveDir * 15;
             }
+
+            // Animation + hitbox
+            player.Update(GRAVITY, moveDir);
+
+            // Collision với map
+            int offsetX = player.FacingLeft ? 85 : 60;
+            int offsetY = 40;
+            var b = new Rectangle(
+                player.Bounds.X + offsetX,
+                player.Bounds.Y + offsetY,
+                player.Bounds.Width - 150,
+                player.Bounds.Height - 40
+            );
+
+            var vel = player.VelocityY;
+            bool onGround = map.ResolveCollision(ref b, ref vel);
+            player.VelocityY = vel;
+            player.IsOnPlatform = onGround;
+
+            // QUAN TRỌNG: đồng bộ Bounds từ hurtBox đã resolve
+            player.Bounds.X = b.X - offsetX;
+            player.Bounds.Y = b.Y - offsetY;
         }
 
         private void UpdateEnemies()
         {
             foreach (var enemy in enemies)
             {
-                // Bỏ if (enemy.IsDead) continue
-                // Dead state vẫn cần Update() để chạy AnimateOnce()
-
                 if (enemy.CurrentState != EnemyState.Dead)
                     enemy.UpdateAI(player);
 
-                enemy.Update(GRAVITY); // Luôn gọi kể cả khi Dead
+                enemy.Update(GRAVITY);
 
                 if (enemy.CurrentState != EnemyState.Dead)
                 {
-                    if (enemy.hurtBox.IntersectsWith(platform))
-                    {
-                        enemy.Bounds.Y = platform.Y - enemy.Bounds.Height;
-                        enemy.VelocityY = 0;
-                        enemy.IsOnPlatform = true;
-                    }
-                    else enemy.IsOnPlatform = false;
+                    int offsetX = enemy.hurtBox.X - enemy.Bounds.X;
+                    int offsetY = enemy.hurtBox.Y - enemy.Bounds.Y;
+
+                    var b = new Rectangle(
+                        enemy.Bounds.X + offsetX,
+                        enemy.Bounds.Y + offsetY,
+                        enemy.hurtBox.Width,
+                        enemy.hurtBox.Height
+                    );
+
+                    var ev = enemy.VelocityY;
+                    bool eg = map.ResolveCollision(ref b, ref ev);
+                    enemy.VelocityY = ev;
+                    enemy.IsOnPlatform = eg;
+
+                    enemy.Bounds.X = b.X - offsetX;
+                    enemy.Bounds.Y = b.Y - offsetY;
                 }
             }
 
@@ -221,12 +258,17 @@ namespace Platform_Game_Project
 
         private void DrawGame(Graphics g)
         {
+            g.Clear(Color.Black);
             g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.NearestNeighbor;
-            g.FillRectangle(Brushes.Black, platform);
+            g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.Half;
+
+            map.DrawMap(g);
+            map.DrawDebug(g); // bỏ comment để debug collision
             foreach (var enemy in enemies) enemy.Draw(g);
             player.Draw(g);
+
             g.DrawString($"State: {player.CurrentState} | Frame: {player.currentFrame}",
-    new Font("Arial", 10), Brushes.White, 10, 10);
+                new Font("Arial", 10), Brushes.White, 10, 10);
         }
 
         private void DrawGameOver(Graphics g)
