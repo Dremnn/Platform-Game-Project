@@ -29,36 +29,39 @@ namespace Platform_Game_Project
             int dx = player.Bounds.X - Bounds.X;
             FacingLeft = dx < 0;
 
+            // Một khi vào DetectRange thì isAggro = true mãi mãi
+            if (DetectRange.IntersectsWith(player.hurtBox))
+                isAggro = true;
+
             switch (CurrentState)
             {
                 case EnemyState.Idle:
-                    if (DetectRange.IntersectsWith(player.hurtBox))
-                        TransitionTo(EnemyState.Running, "Run", 4);
+                    if (isAggro)
+                        TransitionTo(EnemyState.Running, "Run", 3);
                     break;
 
                 case EnemyState.Running:
                     if (AttackRange.IntersectsWith(player.hurtBox))
-                        TransitionTo(EnemyState.Attack, "Attack", 5); // Slime đánh chậm hơn Skeleton
-                    else if (!DetectRange.IntersectsWith(player.hurtBox))
-                        TransitionTo(EnemyState.Idle, "Idle", 5);
+                        TransitionTo(EnemyState.Attack, "Attack", 4);
                     else
-                        Bounds.X += dx > 0 ? moveSpeed : -moveSpeed;
+                        Bounds.X += dx > 0 ? moveSpeed : -moveSpeed; // Luôn đuổi theo
                     break;
 
                 case EnemyState.Attack:
                     if (IsLastFrame())
                     {
                         if (AttackRange.IntersectsWith(player.hurtBox))
-                            TransitionTo(EnemyState.Attack, "Attack", 5);
+                            TransitionTo(EnemyState.Attack, "Attack", 4);
                         else
-                            TransitionTo(EnemyState.Running, "Run", 4);
+                            TransitionTo(EnemyState.Running, "Run", 3);
                     }
                     break;
 
                 case EnemyState.Hurt:
                     if (IsLastFrame())
-                        TransitionTo(EnemyState.Idle, "Idle", 5);
+                        TransitionTo(EnemyState.Idle, "Idle", 4);
                     break;
+
                 case EnemyState.Dead:
                     return;
             }

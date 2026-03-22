@@ -40,21 +40,25 @@ namespace Platform_Game_Project
         private const int DASH_COOLDOWN = 60;
         private const int DASH_DURATION = 7;
 
-        public int CurrentAttackDamage => CurrentState switch
+        // Dmg
+        public int BonusDamage = 0;
+        public int BonusKnockback = 0;
+
+        public int CurrentAttackDamage => (CurrentState switch
         {
             PlayerState.LightAttack => 10,
             PlayerState.HeavyAttack => 30,
             PlayerState.DashAttack => 20,
             _ => 0
-        };
+        }) + BonusDamage;
 
-        public int CurrentAttackKnockback => CurrentState switch
+        public int CurrentAttackKnockback => (CurrentState switch
         {
             PlayerState.LightAttack => 5,
             PlayerState.HeavyAttack => 10,
             PlayerState.DashAttack => 12,
             _ => 0
-        };
+        }) + BonusKnockback;
 
         public Player(int x, int y, int scale)
             : base(x, y, 64, 44, hp: 100, scale)
