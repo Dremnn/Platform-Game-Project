@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 
@@ -8,7 +9,8 @@ namespace Platform_Game_Project
     {
         Idle, Running, Jumping, Falling,
         Dashing, Hurt, Dead,
-        LightAttack, HeavyAttack, DashAttack
+        LightAttack, HeavyAttack, DashAttack,
+        Climbing   // ← dùng cho Ladder
     }
 
     public class Player : Entity
@@ -17,10 +19,15 @@ namespace Platform_Game_Project
         public Rectangle ActiveHitbox;
         public bool IsHitboxActive = false;
         public HashSet<Enemy> HitEnemiesThisSwing = new HashSet<Enemy>();
+
+        // Ladder
+        public bool IsOnLadder = false;
+        public bool IsClimbing = false;
+
         public bool IsDeadAnimationDone =>
-        CurrentState == PlayerState.Dead &&
-        currentFrame == animations[currentAnimKey].Count - 1 &&
-        frameTimer >= frameDelay - 1;
+            CurrentState == PlayerState.Dead &&
+            currentFrame == animations[currentAnimKey].Count - 1 &&
+            frameTimer >= frameDelay - 1;
 
         // Combo
         private int comboTimer = 0;
@@ -32,9 +39,7 @@ namespace Platform_Game_Project
         private int dashCooldownTimer = 0;
         private const int DASH_COOLDOWN = 60;
         private const int DASH_DURATION = 7;
-        private const int DASH_SPEED = 30;
 
-        // Dmg
         public int CurrentAttackDamage => CurrentState switch
         {
             PlayerState.LightAttack => 10,
@@ -72,9 +77,27 @@ namespace Platform_Game_Project
             animations["HeavyAttack"] = LoadFolder(Path.Combine(playerPath, "Heavy Attack"));
             animations["DashAttack"] = LoadFolder(Path.Combine(playerPath, "Dash Attack"));
             animations["Dead"] = LoadFolder(Path.Combine(playerPath, "Dead"));
+
+            // Climb animation — nếu chưa có folder thì dùng Idle làm tạm
+            string climbPath = Path.Combine(playerPath, "Climb");
+            animations["Climbing"] = Directory.Exists(climbPath)
+                ? LoadFolder(climbPath)
+                : animations["Idle"];
         }
 
-        public void HandleState(bool isMoving, bool isJumping, bool isDashing, bool isLightAttacking, bool isDashAttacking)
+        // ── Dùng bởi Form1 khi đang leo thang ──
+        public void ForceState(PlayerState newState)
+        {
+            if (CurrentState == newState) return;
+            CurrentState = newState;
+            currentFrame = 0;
+            frameTimer = 0;
+            currentAnimKey = newState.ToString();
+            frameDelay = 6;
+        }
+
+        public void HandleState(bool isMoving, bool isJumping, bool isDashing,
+                                bool isLightAttacking, bool isDashAttacking)
         {
             if (CurrentState == PlayerState.Dead) return;
 
@@ -120,13 +143,17 @@ namespace Platform_Game_Project
                     if (IsOnPlatform)
                         TransitionTo(isMoving ? PlayerState.Running : PlayerState.Idle);
                     break;
+
                 case PlayerState.Hurt:
                     if (IsLastFrame())
-                        TransitionTo(IsOnPlatform ? (isMoving ? PlayerState.Running : PlayerState.Idle)
-                                                  : PlayerState.Falling);
+                        TransitionTo(IsOnPlatform
+                            ? (isMoving ? PlayerState.Running : PlayerState.Idle)
+                            : PlayerState.Falling);
                     break;
+
                 case PlayerState.Dead:
                     break;
+
                 case PlayerState.LightAttack:
                     if (IsLastFrame())
                     {
@@ -150,6 +177,10 @@ namespace Platform_Game_Project
                     if (IsLastFrame())
                         TransitionTo(isMoving ? PlayerState.Running : PlayerState.Idle);
                     break;
+
+                // Climbing được quản lý bởi Form1, không cần xử lý ở đây
+                case PlayerState.Climbing:
+                    break;
             }
         }
 
@@ -168,7 +199,9 @@ namespace Platform_Game_Project
 
         private void StartAttack(bool isMoving)
         {
-            TransitionTo(canFollowUp && comboTimer > 0 ? PlayerState.HeavyAttack : PlayerState.LightAttack);
+            TransitionTo(canFollowUp && comboTimer > 0
+                ? PlayerState.HeavyAttack
+                : PlayerState.LightAttack);
             canFollowUp = false;
             hasAttackInput = false;
         }
@@ -177,12 +210,11 @@ namespace Platform_Game_Project
         {
             if (HP <= 0) return;
             HP -= damage;
-            Bounds.X += enemyFacingLeft ? -knockback : knockback;
+            if (knockback > 0)
+                Bounds.X += enemyFacingLeft ? -knockback : knockback;
 
-            if (HP <= 0)
-                TransitionTo(PlayerState.Dead);
-            else
-                TransitionTo(PlayerState.Hurt);
+            if (HP <= 0) TransitionTo(PlayerState.Dead);
+            else TransitionTo(PlayerState.Hurt);
         }
 
         private void TransitionTo(PlayerState newState)
@@ -190,12 +222,13 @@ namespace Platform_Game_Project
             if (CurrentState == newState) return;
 
             bool isNewAttack = newState == PlayerState.LightAttack
-                || newState == PlayerState.HeavyAttack
-                || newState == PlayerState.DashAttack;
+                            || newState == PlayerState.HeavyAttack
+                            || newState == PlayerState.DashAttack;
             if (isNewAttack) HitEnemiesThisSwing.Clear();
 
             CurrentState = newState;
             currentFrame = frameTimer = 0;
+            currentAnimKey = newState.ToString();
             frameDelay = newState switch
             {
                 PlayerState.Idle => 4,
@@ -208,24 +241,16 @@ namespace Platform_Game_Project
                 PlayerState.HeavyAttack => 3,
                 PlayerState.DashAttack => 2,
                 PlayerState.Dead => 4,
+                PlayerState.Climbing => 5,
                 _ => 6
             };
-            currentAnimKey = newState.ToString();
         }
 
-        public override void Update(int gravity)
-        {
-            Update(gravity, 0);
-        }
+        public override void Update(int gravity) => Update(gravity, 0);
 
         public void Update(int gravity, int moveDir)
         {
-            if (CurrentState == PlayerState.Dead)
-            {
-                AnimateOnce();
-                return;
-            }
-
+            if (CurrentState == PlayerState.Dead) { AnimateOnce(); return; }
             Animate();
             UpdateHitbox();
             UpdateHurtbox();
@@ -238,34 +263,36 @@ namespace Platform_Game_Project
             if (CurrentState == PlayerState.LightAttack && currentFrame >= 5 && currentFrame <= 7)
             {
                 IsHitboxActive = true;
-                ActiveHitbox = new Rectangle(Bounds.X + (FacingLeft ? 10 : 70), Bounds.Y, 120, 100);
+                ActiveHitbox = new Rectangle(
+                    Bounds.X + (FacingLeft ? 10 : 70), Bounds.Y, 120, 100);
             }
             else if (CurrentState == PlayerState.HeavyAttack && currentFrame <= 2)
             {
                 IsHitboxActive = true;
-                ActiveHitbox = new Rectangle(Bounds.X + (FacingLeft ? 30 : 20), Bounds.Y, 150, 100);
+                ActiveHitbox = new Rectangle(
+                    Bounds.X + (FacingLeft ? 30 : 20), Bounds.Y, 150, 100);
             }
             else if (CurrentState == PlayerState.DashAttack && currentFrame >= 3 && currentFrame <= 4)
             {
                 IsHitboxActive = true;
-                ActiveHitbox = new Rectangle(Bounds.X + (FacingLeft ? 10 : 60), Bounds.Y + 20, 130, 120);
+                ActiveHitbox = new Rectangle(
+                    Bounds.X + (FacingLeft ? 10 : 60), Bounds.Y + 20, 130, 120);
             }
         }
 
         public override void UpdateHurtbox()
         {
-            // Căn vào giữa sprite, bỏ vùng trống 2 bên
             hurtBox = new Rectangle(
                 Bounds.X + (FacingLeft ? 85 : 60),
                 Bounds.Y + 40,
                 Bounds.Width - 150,
-                Bounds.Height - 40
-            );
+                Bounds.Height - 40);
         }
 
         public override void Draw(Graphics g)
         {
-            if (!animations.ContainsKey(currentAnimKey) || animations[currentAnimKey].Count == 0) return;
+            if (!animations.ContainsKey(currentAnimKey) ||
+                animations[currentAnimKey].Count == 0) return;
 
             DrawImage(g, animations[currentAnimKey][currentFrame]);
 
@@ -273,9 +300,15 @@ namespace Platform_Game_Project
             g.DrawRectangle(Pens.Cyan, Bounds);
             if (IsHitboxActive) g.DrawRectangle(Pens.Yellow, ActiveHitbox);
 
+            // HP bar
             g.FillRectangle(Brushes.DarkRed, Bounds.X, Bounds.Y - 10, Bounds.Width, 6);
             g.FillRectangle(Brushes.LimeGreen, Bounds.X, Bounds.Y - 10,
                             (int)((float)HP / MaxHP * Bounds.Width), 6);
+
+            // Indicator đang leo thang
+            if (IsClimbing)
+                g.DrawString("↕", new Font("Arial", 8), Brushes.Yellow,
+                             Bounds.X, Bounds.Y - 22);
         }
     }
 }

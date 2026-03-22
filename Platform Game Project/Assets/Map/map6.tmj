@@ -70,26 +70,26 @@
          "name":"Ground",
          "objects":[
                 {
-                 "height":14.8006379585327,
+                 "height":14.8006,
                  "id":1,
                  "name":"",
                  "rotation":0,
                  "type":"",
                  "visible":true,
-                 "width":94.9282296650718,
-                 "x":0.5103668261563,
-                 "y":223.030303030303
+                 "width":94.9282,
+                 "x":0.510367,
+                 "y":223.03
                 }, 
                 {
-                 "height":34.1945773524721,
+                 "height":34.1946,
                  "id":2,
                  "name":"",
                  "rotation":0,
                  "type":"",
                  "visible":true,
-                 "width":14.2902711323764,
-                 "x":81.658692185008,
-                 "y":237.830940988836
+                 "width":14.2903,
+                 "x":81.6587,
+                 "y":237.831
                 }, 
                 {
                  "height":16,
@@ -266,6 +266,17 @@
                  "width":14.25,
                  "x":96.25,
                  "y":151.5
+                }, 
+                {
+                 "height":68,
+                 "id":18,
+                 "name":"",
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":6,
+                 "x":-4,
+                 "y":168.666666666667
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -274,7 +285,7 @@
          "y":0
         }],
  "nextlayerid":7,
- "nextobjectid":18,
+ "nextobjectid":19,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.11.2",

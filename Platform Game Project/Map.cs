@@ -12,10 +12,50 @@ namespace Platform_Game_Project
         public bool IsOneWay;
     }
 
+    // ── Stair polygon: lưu vertices thật để tính mặt bậc chính xác ──
+    public class StairPolygon
+    {
+        public List<PointF> Vertices = new();
+        public Rectangle Bounds; // AABB để check nhanh
+
+        /// <summary>
+        /// Tìm Y mặt bậc (cạnh ngang cao nhất) tại worldX.
+        /// Trả về float.MaxValue nếu X nằm ngoài phạm vi polygon.
+        /// </summary>
+        public float GetSurfaceYAt(float worldX)
+        {
+            float bestY = float.MaxValue;
+
+            for (int i = 0; i < Vertices.Count; i++)
+            {
+                var a = Vertices[i];
+                var b = Vertices[(i + 1) % Vertices.Count];
+
+                // Bỏ qua cạnh dọc (riser của bậc thang)
+                if (MathF.Abs(b.X - a.X) < 0.5f) continue;
+
+                float minX = MathF.Min(a.X, b.X);
+                float maxX = MathF.Max(a.X, b.X);
+                if (worldX < minX || worldX > maxX) continue;
+
+                // Nội suy Y tại worldX trên cạnh này
+                float t = (worldX - a.X) / (b.X - a.X);
+                float y = a.Y + t * (b.Y - a.Y);
+
+                // Lấy cạnh có Y nhỏ nhất = cao nhất màn hình = mặt bậc
+                if (y < bestY) bestY = y;
+            }
+
+            return bestY;
+        }
+    }
+
     public class TiledMap
     {
         public List<MapCollider> Colliders = new();
         public List<Rectangle> Ladders = new();
+        public List<StairPolygon> Stairs = new();   // polygon thật
+        public List<Rectangle> Spikes = new();
         public Rectangle? ItemSpawn;
         public Rectangle? Door;
 
@@ -23,18 +63,19 @@ namespace Platform_Game_Project
         private Image _tileset;
         private int _tileW, _tileH;
         private int _tilesetCols;
-        private List<(int tileId, bool flipH, bool flipV, bool flipD, int col, int row)> _tiles = new(); public TiledMap(string tmjPath, int scale = 3)
+        private List<(int tileId, bool flipH, bool flipV, bool flipD, int col, int row)> _tiles = new();
+
+        public TiledMap(string tmjPath, int scale = 3)
         {
             _scale = scale;
             var json = File.ReadAllText(tmjPath);
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
 
-            _tileW = root.GetProperty("tilewidth").GetInt32();   // 16
-            _tileH = root.GetProperty("tileheight").GetInt32();  // 16
-            int mapCols = root.GetProperty("width").GetInt32();  // 30
+            _tileW = root.GetProperty("tilewidth").GetInt32();
+            _tileH = root.GetProperty("tileheight").GetInt32();
+            int mapCols = root.GetProperty("width").GetInt32();
 
-            // Load tileset — đặt Tileset.png cùng thư mục với file .tmj
             string mapDir = Path.GetDirectoryName(tmjPath)!;
             string tilesetPath = Path.Combine(mapDir, "Tileset.png");
             if (File.Exists(tilesetPath))
@@ -48,7 +89,7 @@ namespace Platform_Game_Project
                 string name = layer.GetProperty("name").GetString() ?? "";
                 string type = layer.GetProperty("type").GetString() ?? "";
 
-                // --- Tile layer: lấy dữ liệu tile để render ---
+                // ── Tile layer ──
                 if (type == "tilelayer" && layer.TryGetProperty("data", out var dataEl))
                 {
                     int col = 0, row = 0;
@@ -57,44 +98,61 @@ namespace Platform_Game_Project
                         uint rawId = tile.GetUInt32();
                         bool flipH = (rawId & 0x80000000) != 0;
                         bool flipV = (rawId & 0x40000000) != 0;
-                        bool flipD = (rawId & 0x20000000) != 0; // diagonal / rotation
+                        bool flipD = (rawId & 0x20000000) != 0;
                         int id = (int)(rawId & 0x1FFFFFFF);
-                        if (id > 0)
-                            _tiles.Add((id - 1, flipH, flipV, flipD, col, row));
-
+                        if (id > 0) _tiles.Add((id - 1, flipH, flipV, flipD, col, row));
                         col++;
                         if (col >= mapCols) { col = 0; row++; }
                     }
                     continue;
                 }
 
-                // --- Object layer: collision, ladder, door... ---
                 if (type != "objectgroup") continue;
 
+                // ── Object layer ──
                 foreach (var obj in layer.GetProperty("objects").EnumerateArray())
                 {
                     float ox = obj.GetProperty("x").GetSingle();
                     float oy = obj.GetProperty("y").GetSingle();
 
-                    Rectangle rect;
-
-                    if (obj.TryGetProperty("polygon", out var poly))
+                    // ── Stair: parse polygon giữ nguyên vertices ──
+                    if (name == "Stair" && obj.TryGetProperty("polygon", out var polyStair))
                     {
-                        // Tính bounding box của polygon
+                        var stair = new StairPolygon();
                         float minX = float.MaxValue, minY = float.MaxValue;
                         float maxX = float.MinValue, maxY = float.MinValue;
 
+                        foreach (var pt in polyStair.EnumerateArray())
+                        {
+                            float px = (ox + pt.GetProperty("x").GetSingle()) * _scale;
+                            float py = (oy + pt.GetProperty("y").GetSingle()) * _scale;
+                            stair.Vertices.Add(new PointF(px, py));
+                            if (px < minX) minX = px; if (py < minY) minY = py;
+                            if (px > maxX) maxX = px; if (py > maxY) maxY = py;
+                        }
+
+                        stair.Bounds = new Rectangle(
+                            (int)minX, (int)minY,
+                            Math.Max(1, (int)(maxX - minX)),
+                            Math.Max(1, (int)(maxY - minY)));
+
+                        Stairs.Add(stair);
+                        continue; // không parse thêm bên dưới
+                    }
+
+                    // ── Các object còn lại: lấy bounding box ──
+                    Rectangle rect;
+                    if (obj.TryGetProperty("polygon", out var poly))
+                    {
+                        float minX = float.MaxValue, minY = float.MaxValue;
+                        float maxX = float.MinValue, maxY = float.MinValue;
                         foreach (var pt in poly.EnumerateArray())
                         {
                             float px = pt.GetProperty("x").GetSingle();
                             float py = pt.GetProperty("y").GetSingle();
-                            if (px < minX) minX = px;
-                            if (py < minY) minY = py;
-                            if (px > maxX) maxX = px;
-                            if (py > maxY) maxY = py;
+                            if (px < minX) minX = px; if (py < minY) minY = py;
+                            if (px > maxX) maxX = px; if (py > maxY) maxY = py;
                         }
-
-                        // ox, oy là vị trí gốc của object trong Tiled
                         rect = ScaleRect(ox + minX, oy + minY, maxX - minX, maxY - minY);
                     }
                     else
@@ -112,6 +170,9 @@ namespace Platform_Game_Project
                         case "One-Way":
                             Colliders.Add(new MapCollider { Bounds = rect, IsOneWay = true });
                             break;
+                        case "Spike":
+                            Spikes.Add(rect);
+                            break;
                         case "Ladder":
                             Ladders.Add(rect);
                             break;
@@ -127,45 +188,31 @@ namespace Platform_Game_Project
         }
 
         private Rectangle ScaleRect(float x, float y, float w, float h)
-        {
-            return new Rectangle(
-                (int)(x * _scale),
-                (int)(y * _scale),
-                Math.Max(1, (int)(w * _scale)),
-                Math.Max(1, (int)(h * _scale))
-            );
-        }
+            => new Rectangle((int)(x * _scale), (int)(y * _scale),
+                             Math.Max(1, (int)(w * _scale)), Math.Max(1, (int)(h * _scale)));
 
+        // ────────────────────────────────────────────────────
+        //  DRAW
+        // ────────────────────────────────────────────────────
         public void DrawMap(Graphics g)
         {
             if (_tileset == null) return;
-
             g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.Half;
 
             foreach (var (tileId, flipH, flipV, flipD, col, row) in _tiles)
             {
                 int srcX = (tileId % _tilesetCols) * _tileW;
                 int srcY = (tileId / _tilesetCols) * _tileH;
-
-                var destRect = new Rectangle(
-                    col * _tileW * _scale,
-                    row * _tileH * _scale,
-                    _tileW * _scale,
-                    _tileH * _scale);
+                var destRect = new Rectangle(col * _tileW * _scale, row * _tileH * _scale,
+                                             _tileW * _scale, _tileH * _scale);
 
                 using var bmp = new Bitmap(_tileW, _tileH);
                 using (var bg = Graphics.FromImage(bmp))
-                {
                     bg.DrawImage(_tileset,
                         new Rectangle(0, 0, _tileW, _tileH),
                         new Rectangle(srcX, srcY, _tileW, _tileH),
                         GraphicsUnit.Pixel);
-                }
 
-                // Tiled rotation encoding:
-                // 90°  CW  = flipD + flipH
-                // 90°  CCW = flipD + flipV
-                // 180°     = flipH + flipV
                 var flipType = (flipD, flipH, flipV) switch
                 {
                     (false, false, false) => RotateFlipType.RotateNoneFlipNone,
@@ -177,7 +224,6 @@ namespace Platform_Game_Project
                     (true, false, false) => RotateFlipType.Rotate90FlipY,
                     (true, true, true) => RotateFlipType.Rotate270FlipY,
                 };
-
                 bmp.RotateFlip(flipType);
                 g.DrawImage(bmp, destRect);
             }
@@ -185,18 +231,54 @@ namespace Platform_Game_Project
             g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.Default;
         }
 
-        public bool ResolveCollision(ref Rectangle bounds, ref int velocityY)
+        public void DrawDebug(Graphics g)
+        {
+            foreach (var col in Colliders)
+                g.DrawRectangle(col.IsOneWay ? Pens.Cyan : Pens.Lime, col.Bounds);
+
+            // Vẽ polygon stair thật (màu cam)
+            foreach (var stair in Stairs)
+            {
+                if (stair.Vertices.Count < 2) continue;
+                for (int i = 0; i < stair.Vertices.Count; i++)
+                {
+                    var a = stair.Vertices[i];
+                    var b = stair.Vertices[(i + 1) % stair.Vertices.Count];
+                    g.DrawLine(Pens.Orange, a, b);
+                }
+                g.DrawRectangle(Pens.DarkOrange, stair.Bounds); // AABB tham chiếu
+            }
+
+            foreach (var spike in Spikes)
+                g.DrawRectangle(Pens.Red, spike);
+            foreach (var ladder in Ladders)
+                g.DrawRectangle(Pens.Brown, ladder);
+            if (Door.HasValue)
+                g.DrawRectangle(Pens.Gold, Door.Value);
+        }
+
+        // ────────────────────────────────────────────────────
+        //  COLLISION RESOLUTION
+        // ────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Resolve collision với Ground và One-Way.
+        /// ignoreOneWay = true khi player đang drop-through.
+        /// </summary>
+        public bool ResolveCollision(ref Rectangle bounds, ref int velocityY,
+                                     bool ignoreOneWay = false)
         {
             bool onGround = false;
 
             foreach (var col in Colliders)
             {
                 if (!bounds.IntersectsWith(col.Bounds)) continue;
-
                 var inter = Rectangle.Intersect(bounds, col.Bounds);
 
                 if (col.IsOneWay)
                 {
+                    if (ignoreOneWay) continue;
+                    // Chỉ block khi đang rơi xuống và đáy player gần đỉnh platform
                     if (velocityY >= 0 && bounds.Bottom - inter.Height <= col.Bounds.Top + 4)
                     {
                         bounds.Y = col.Bounds.Top - bounds.Height;
@@ -206,20 +288,20 @@ namespace Platform_Game_Project
                 }
                 else
                 {
-                    if (inter.Width < inter.Height)
+                    if (inter.Width < inter.Height) // va chạm ngang
                     {
                         if (bounds.X < col.Bounds.X) bounds.X -= inter.Width;
                         else bounds.X += inter.Width;
                     }
-                    else
+                    else // va chạm dọc
                     {
-                        if (bounds.Y < col.Bounds.Y)
+                        if (bounds.Y < col.Bounds.Y) // rơi xuống chạm đỉnh
                         {
                             bounds.Y -= inter.Height;
                             velocityY = 0;
                             onGround = true;
                         }
-                        else
+                        else // nhảy lên chạm đáy
                         {
                             bounds.Y += inter.Height;
                             if (velocityY < 0) velocityY = 0;
@@ -231,14 +313,22 @@ namespace Platform_Game_Project
             return onGround;
         }
 
-        public void DrawDebug(Graphics g)
+        /// <summary>
+        /// Chỉ resolve va chạm ngang (dùng khi leo ladder).
+        /// </summary>
+        public void ResolveHorizontalOnly(ref Rectangle bounds)
         {
             foreach (var col in Colliders)
-                g.DrawRectangle(col.IsOneWay ? Pens.Cyan : Pens.Lime, col.Bounds);
-            foreach (var ladder in Ladders)
-                g.DrawRectangle(Pens.Brown, ladder);
-            if (Door.HasValue)
-                g.DrawRectangle(Pens.Gold, Door.Value);
+            {
+                if (col.IsOneWay) continue;
+                if (!bounds.IntersectsWith(col.Bounds)) continue;
+                var inter = Rectangle.Intersect(bounds, col.Bounds);
+                if (inter.Width < inter.Height)
+                {
+                    if (bounds.X < col.Bounds.X) bounds.X -= inter.Width;
+                    else bounds.X += inter.Width;
+                }
+            }
         }
     }
 }
