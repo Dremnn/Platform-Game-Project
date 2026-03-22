@@ -16,6 +16,8 @@ namespace Platform_Game_Project
         private const int GRAVITY = 2;
         private GameScene currentScene = GameScene.Menu;
 
+        private int coyoteTimer = 0;
+
         private bool left, right, jump, lightAttack, dash;
         
         // Map
@@ -24,13 +26,16 @@ namespace Platform_Game_Project
             //"map10.tmj",
             "map2.tmj",
             "map3.tmj",
-            //"map4.tmj",
-            //"map5.tmj",
-            //"map6.tmj",
-            //"map7.tmj",
-            //"map8.tmj",
-            //"map9.tmj",
+            "map4.tmj",
+            "map5.tmj",
+            "map6.tmj",
+            "map7.tmj",
+            "map8.tmj", 
+            "map9.tmj",
         };
+
+        //SFX
+        private SoundManager sfx;
 
         private Random rng = new Random();
         private string lastMap = "";
@@ -68,6 +73,7 @@ namespace Platform_Game_Project
             LoadRandomMap();
             SpawnEnemiesForMap(lastMap);
             ui = new UIManager(this.ClientSize.Width);
+            sfx = new SoundManager();
         }
 
 
@@ -168,49 +174,7 @@ namespace Platform_Game_Project
                 else if (right) { moveDir = 1; player.FacingLeft = false; }
             }
 
-            // ────────────────────────────────────
-            //  CHẾ ĐỘ LEO THANG (Ladder)
-            // ────────────────────────────────────
-            if (player.IsClimbing)
-            {
-                int climbSpeed = 4;
-
-                player.Bounds.X += moveDir * 8;
-                if (climbUp) player.Bounds.Y -= climbSpeed;
-                if (climbDown) player.Bounds.Y += climbSpeed;
-
-                player.VelocityY = 0;
-                player.IsOnPlatform = false;
-
-                // Nhảy thoát khỏi thang
-                if (jump)
-                {
-                    player.IsClimbing = false;
-                    player.VelocityY = -22;
-                }
-
-                player.ForceState(PlayerState.Climbing);
-                player.Update(0, moveDir);
-
-                // Chỉ resolve ngang, không block vertical khi leo
-                int offX = player.FacingLeft ? 85 : 60;
-                int offY = 40;
-                var hbClimb = new Rectangle(
-                    player.Bounds.X + offX, player.Bounds.Y + offY,
-                    player.Bounds.Width - 150, player.Bounds.Height - 40);
-
-                map.ResolveHorizontalOnly(ref hbClimb);
-                player.Bounds.X = hbClimb.X - offX;
-                player.Bounds.Y = hbClimb.Y - offY;
-                player.UpdateHurtbox();
-                return;
-            }
-
-            // ────────────────────────────────────
-            //  CHẾ ĐỘ BÌNH THƯỜNG
-            // ────────────────────────────────────
-            player.HandleState(left || right, jump, dash, lightAttack, lightAttack);
-
+            // Physics
             if (player.CurrentState == PlayerState.Dashing)
             {
                 player.Bounds.X += (player.FacingLeft ? -1 : 1) * 30;
@@ -238,13 +202,27 @@ namespace Platform_Game_Project
             bool onGround = map.ResolveCollision(ref b, ref vel,
                                                   ignoreOneWay: dropThroughTimer > 0);
             player.VelocityY = vel;
-            player.IsOnPlatform = onGround;
+            // Mới
+            if (onGround)
+            {
+                player.IsOnPlatform = true;
+                coyoteTimer = 5;
+            }
+            else if (coyoteTimer > 0)
+            {
+                coyoteTimer--;
+                player.IsOnPlatform = true;
+            }
+            else
+            {
+                player.IsOnPlatform = false;
+            }
 
             player.Bounds.X = b.X - offsetX;
             player.Bounds.Y = b.Y - offsetY;
 
-            // Stair: snap lên bậc thang sau khi resolve ground
-            HandleStairStep();
+            player.HandleState(left || right, jump, dash, lightAttack, lightAttack);
+
         }
 
         // ════════════════════════════════════════
@@ -454,6 +432,7 @@ namespace Platform_Game_Project
                                      player.CurrentAttackKnockback,
                                      player.FacingLeft);
                     player.HitEnemiesThisSwing.Add(enemy);
+                    sfx.Play("player_hit");
 
                     if (enemy.IsDead)
                     {
@@ -471,19 +450,14 @@ namespace Platform_Game_Project
             // Enemy đánh player
             foreach (var enemy in enemies)
             {
-                if (enemy.IsDead || !enemy.IsHitboxActive || enemy.HasHitPlayer) continue;
+                if (enemy.IsDead || !enemy.IsHitboxActive) continue;
+                if (enemy.HasHitPlayer) continue;
                 if (!enemy.ActiveHitbox.IntersectsWith(player.hurtBox)) continue;
 
                 player.TakeDamage(10, 15, enemy.FacingLeft);
                 enemy.HasHitPlayer = true;
+                sfx.Play("player_hurt");
             }
-
-            //// Reset khi enemy kết thúc đòn attack
-            //foreach (var enemy in enemies)
-            //{
-            //    if (enemy.CurrentState != EnemyState.Attack)
-            //        enemy.HasHitPlayer = false;
-            //}
         }
 
         // BUFF

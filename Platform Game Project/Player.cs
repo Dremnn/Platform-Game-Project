@@ -8,9 +8,8 @@ namespace Platform_Game_Project
     public enum PlayerState
     {
         Idle, Running, Jumping, Falling,
-        Dashing, Hurt, Dead,
-        LightAttack, HeavyAttack, DashAttack,
-        Climbing   // ← dùng cho Ladder
+        Dashing, Hurt, Dead, Climbing,
+        LightAttack, HeavyAttack, DashAttack
     }
 
     public class Player : Entity
@@ -76,6 +75,7 @@ namespace Platform_Game_Project
             animations["Jumping"] = LoadFolder(Path.Combine(playerPath, "Jump"));
             animations["Falling"] = LoadFolder(Path.Combine(playerPath, "Fall"));
             animations["Dashing"] = LoadFolder(Path.Combine(playerPath, "Dash"));
+            animations["Climbing"] = LoadFolder(Path.Combine(playerPath, "Climb"));
             animations["Hurt"] = LoadFolder(Path.Combine(playerPath, "Hurt"));
             animations["LightAttack"] = LoadFolder(Path.Combine(playerPath, "Light Attack"));
             animations["HeavyAttack"] = LoadFolder(Path.Combine(playerPath, "Heavy Attack"));
@@ -147,7 +147,6 @@ namespace Platform_Game_Project
                     if (IsOnPlatform)
                         TransitionTo(isMoving ? PlayerState.Running : PlayerState.Idle);
                     break;
-
                 case PlayerState.Hurt:
                     if (IsLastFrame())
                         TransitionTo(IsOnPlatform
@@ -177,6 +176,7 @@ namespace Platform_Game_Project
                     break;
 
                 case PlayerState.HeavyAttack:
+
                 case PlayerState.DashAttack:
                     if (IsLastFrame())
                         TransitionTo(isMoving ? PlayerState.Running : PlayerState.Idle);
@@ -240,6 +240,7 @@ namespace Platform_Game_Project
                 PlayerState.Falling => 6,
                 PlayerState.Jumping => 6,
                 PlayerState.Dashing => 3,
+                PlayerState.Climbing => 4,
                 PlayerState.Hurt => 3,
                 PlayerState.LightAttack => 2,
                 PlayerState.HeavyAttack => 3,
