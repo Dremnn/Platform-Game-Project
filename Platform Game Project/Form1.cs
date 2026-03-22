@@ -246,7 +246,7 @@ namespace Platform_Game_Project
             }
 
             // ─── CHẾ ĐỘ BÌNH THƯỜNG ───
-            player.HandleState(left || right, jump, dash, lightAttack, lightAttack); // ← FIX: gọi HandleState trước physics
+            // ← FIX: gọi HandleState trước physics
 
             if (player.CurrentState == PlayerState.Dashing)
             {
@@ -271,15 +271,15 @@ namespace Platform_Game_Project
                 player.Bounds.Height - 40);
 
             var vel = player.VelocityY;
-            bool onGround = map.ResolveCollision(ref b, ref vel,
-                                                  ignoreOneWay: dropThroughTimer > 0);
+            bool onGround = map.ResolveCollision(ref b, ref vel, ignoreOneWay: dropThroughTimer > 0);
             player.VelocityY = vel;
 
-            // Coyote time
+            // ← Thay đoạn coyote time cũ bằng đoạn này
             if (onGround)
             {
                 player.IsOnPlatform = true;
                 coyoteTimer = 5;
+                if (player.VelocityY > 0) player.VelocityY = 0;
             }
             else if (coyoteTimer > 0)
             {
@@ -293,6 +293,8 @@ namespace Platform_Game_Project
 
             player.Bounds.X = b.X - offsetX;
             player.Bounds.Y = b.Y - offsetY;
+
+            player.HandleState(left || right, jump, dash, lightAttack, lightAttack);
 
             HandleStairStep();
         }

@@ -278,8 +278,11 @@ namespace Platform_Game_Project
                 if (col.IsOneWay)
                 {
                     if (ignoreOneWay) continue;
-                    // Chỉ block khi đang rơi xuống và đáy player gần đỉnh platform
-                    if (velocityY >= 0 && bounds.Bottom - inter.Height <= col.Bounds.Top + 4)
+                    if (velocityY < 0) continue; // Đang bay lên → bỏ qua
+
+                    // Snap khi đáy player chạm hoặc vừa vượt qua đỉnh platform
+                    if (bounds.Bottom >= col.Bounds.Top &&
+                        bounds.Bottom <= col.Bounds.Top + velocityY + 4)
                     {
                         bounds.Y = col.Bounds.Top - bounds.Height;
                         velocityY = 0;
@@ -288,14 +291,16 @@ namespace Platform_Game_Project
                 }
                 else
                 {
-                    if (inter.Width < inter.Height) // va chạm ngang
+                    if (inter.Width < inter.Height)
                     {
+                        // Chỉ bỏ qua corner collision ngang — không ảnh hưởng collision dọc
+                        if (inter.Width <= 2) continue;
                         if (bounds.X < col.Bounds.X) bounds.X -= inter.Width;
                         else bounds.X += inter.Width;
                     }
-                    else // va chạm dọc
+                    else
                     {
-                        if (bounds.Y < col.Bounds.Y && velocityY >= 0) // Thêm velocityY >= 0
+                        if (bounds.Y < col.Bounds.Y && velocityY >= 0)
                         {
                             bounds.Y -= inter.Height;
                             velocityY = 0;
@@ -306,10 +311,9 @@ namespace Platform_Game_Project
                             bounds.Y += inter.Height;
                             if (velocityY < 0) velocityY = 0;
                         }
-                        // Nếu velocityY < 0 và bounds.Y < col.Bounds.Y
-                        // → đang bay lên chạm trần → đẩy ngang thay vì dọc
                         else
                         {
+                            if (inter.Width <= 2) continue; // Corner check chỉ khi đẩy ngang
                             if (bounds.X < col.Bounds.X) bounds.X -= inter.Width;
                             else bounds.X += inter.Width;
                         }
