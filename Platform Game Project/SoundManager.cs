@@ -21,23 +21,12 @@ namespace Platform_Game_Project
 
         private void Load(string key, string path)
         {
-            if (!File.Exists(path))
-            {
-                MessageBox.Show($"MISSING: {path}");
-                return;
-            }
-            MessageBox.Show($"LOADED: {key} <- {Path.GetFileName(path)}");
             sounds[key] = new SoundPlayer(path);
             sounds[key].Load();
         }
 
         public void Play(string key)
         {
-            if (!sounds.ContainsKey(key))
-            {
-                System.Diagnostics.Debug.WriteLine($"NOT LOADED: {key}");
-                return;
-            }
             sounds[key].Play();
         }
     }
