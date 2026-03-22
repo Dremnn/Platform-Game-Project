@@ -1,6 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.IO;
+using System.Linq;
+using System.Numerics;
 using System.Windows.Forms;
 
 namespace Platform_Game_Project
@@ -16,25 +19,37 @@ namespace Platform_Game_Project
         private const int GRAVITY = 2;
         private GameScene currentScene = GameScene.Menu;
 
+        // Coyote time
         private int coyoteTimer = 0;
 
-        private bool left, right, jump, lightAttack, dash;
-        
+        // Input giữ liên tục
+        private bool left, right, jump, climbUp, climbDown;
+        // Input "vừa nhấn" (reset mỗi tick)
+        private bool lightAttack, dash, interactE, dropDown;
+
+        // ── Spike: trừ 1/4 MaxHP + bất tử 1 giây mỗi lần chạm ──
+        private bool spikeHitThisContact = false;
+        private const int SPIKE_INVINCIBLE_TICKS = 50; // 50 × 20ms = 1 giây
+
+        // ── One-Way drop-through ──
+        private int dropThroughTimer = 0;
+        private const int DROP_THROUGH_TICKS = 15;
+
         // Map
         private List<string> mapPool = new List<string>
         {
-            //"map10.tmj",
+            "map10.tmj",
             "map2.tmj",
             "map3.tmj",
             "map4.tmj",
             "map5.tmj",
             "map6.tmj",
             "map7.tmj",
-            "map8.tmj", 
+            "map8.tmj",
             "map9.tmj",
         };
 
-        //SFX
+        // SFX
         private SoundManager sfx;
 
         private Random rng = new Random();
@@ -50,7 +65,7 @@ namespace Platform_Game_Project
         // Buff
         private bool showBuffPopup = false;
         private List<BuffEntry> buffChoices = new List<BuffEntry>();
-        private const int BUFF_DROP_CHANCE = 100; // 50%
+        private const int BUFF_DROP_CHANCE = 100;
 
         public Form1()
         {
@@ -58,7 +73,7 @@ namespace Platform_Game_Project
             this.DoubleBuffered = true;
             InitGame();
 
-            this.ClientSize = new Size(30 * 16 * 3, 20 * 16 * 3); // 1440×960
+            this.ClientSize = new Size(30 * 16 * 3, 20 * 16 * 3);
             this.FormBorderStyle = FormBorderStyle.FixedSingle;
             this.MaximizeBox = false;
 
@@ -69,6 +84,12 @@ namespace Platform_Game_Project
         private void InitGame()
         {
             soul = 0;
+            mapCount = 0;
+            activeBuffs = new List<BuffEntry>();
+            spikeHitThisContact = false;
+            dropThroughTimer = 0;
+            coyoteTimer = 0;
+
             player = new Player(100, 50, 3);
             LoadRandomMap();
             SpawnEnemiesForMap(lastMap);
@@ -76,8 +97,9 @@ namespace Platform_Game_Project
             sfx = new SoundManager();
         }
 
-
-        // --- Input ---
+        // ════════════════════════════════════════
+        //  INPUT
+        // ════════════════════════════════════════
         private void Form1_KeyDown(object sender, KeyEventArgs e)
         {
             switch (currentScene)
@@ -87,16 +109,16 @@ namespace Platform_Game_Project
                     break;
 
                 case GameScene.Playing:
-                    if (e.KeyCode == Keys.G) enemies.Add(new Slime(100, 50, 3)); ;
+                    if (e.KeyCode == Keys.G) enemies.Add(new Slime(100, 50, 3));
                     if (showBuffPopup)
                     {
                         if (e.KeyCode == Keys.D1 && buffChoices.Count > 0) ApplyBuff(buffChoices[0]);
                         if (e.KeyCode == Keys.D2 && buffChoices.Count > 1) ApplyBuff(buffChoices[1]);
                         if (e.KeyCode == Keys.D3 && buffChoices.Count > 2) ApplyBuff(buffChoices[2]);
-                        return; // Block input game khi đang chọn buff
+                        return;
                     }
-                    if (e.KeyCode == Keys.T) soul += 10; // Test
-                    if (e.KeyCode == Keys.B && soul >= SOUL_REQUIRED) enemies.Add(new Boss(100, 50, 3)); ;
+                    if (e.KeyCode == Keys.T) soul += 10;
+                    if (e.KeyCode == Keys.B && soul >= SOUL_REQUIRED) enemies.Add(new Boss(100, 50, 3));
                     if (e.KeyCode == Keys.A) left = true;
                     if (e.KeyCode == Keys.D) right = true;
                     if (e.KeyCode == Keys.W) climbUp = true;
@@ -128,18 +150,18 @@ namespace Platform_Game_Project
         // ════════════════════════════════════════
         private void gameTimer_Tick(object sender, EventArgs e)
         {
-            if (currentScene == GameScene.Playing)
+            switch (currentScene)           // ← FIX: switch thay vì if
             {
                 case GameScene.Menu:
-                    // Không cần update gì, chỉ chờ input
                     break;
 
                 case GameScene.Playing:
-                    if (!showBuffPopup) // Pause toàn bộ update khi hiện popup
+                    if (!showBuffPopup)
                     {
                         UpdatePlayer();
                         UpdateEnemies();
                         HandleCombat();
+                        HandleSpikeDamage();
                         ResetFrameInput();
                         CheckGameOver();
                         CheckDoor();
@@ -147,7 +169,6 @@ namespace Platform_Game_Project
                     break;
 
                 case GameScene.GameOver:
-                    // Không cần update gì, chỉ chờ input
                     break;
             }
             this.Invalidate();
@@ -162,10 +183,10 @@ namespace Platform_Game_Project
             HandleOneWayDropLogic();
 
             bool isAttacking = player.CurrentState == PlayerState.LightAttack
-                                || player.CurrentState == PlayerState.HeavyAttack
-                                || player.CurrentState == PlayerState.DashAttack;
+                            || player.CurrentState == PlayerState.HeavyAttack
+                            || player.CurrentState == PlayerState.DashAttack;
             bool isBeingHurt = player.CurrentState == PlayerState.Hurt
-                                || player.CurrentState == PlayerState.Dead;
+                            || player.CurrentState == PlayerState.Dead;
 
             int moveDir = 0;
             if (!isAttacking && !isBeingHurt)
@@ -174,7 +195,42 @@ namespace Platform_Game_Project
                 else if (right) { moveDir = 1; player.FacingLeft = false; }
             }
 
-            // Physics
+            // ─── CHẾ ĐỘ LEO THANG ───          // ← FIX: thiếu hoàn toàn trong bản cũ
+            if (player.IsClimbing)
+            {
+                int climbSpeed = 4;
+                player.Bounds.X += moveDir * 8;
+                if (climbUp) player.Bounds.Y -= climbSpeed;
+                if (climbDown) player.Bounds.Y += climbSpeed;
+
+                player.VelocityY = 0;
+                player.IsOnPlatform = false;
+
+                if (jump)
+                {
+                    player.IsClimbing = false;
+                    player.VelocityY = -22;
+                }
+
+                player.ForceState(PlayerState.Climbing);
+                player.Update(0, moveDir);
+
+                int offX = player.FacingLeft ? 85 : 60;
+                int offY = 40;
+                var hbClimb = new Rectangle(
+                    player.Bounds.X + offX, player.Bounds.Y + offY,
+                    player.Bounds.Width - 150, player.Bounds.Height - 40);
+
+                map.ResolveHorizontalOnly(ref hbClimb);
+                player.Bounds.X = hbClimb.X - offX;
+                player.Bounds.Y = hbClimb.Y - offY;
+                player.UpdateHurtbox();
+                return;
+            }
+
+            // ─── CHẾ ĐỘ BÌNH THƯỜNG ───
+            player.HandleState(left || right, jump, dash, lightAttack, lightAttack); // ← FIX: gọi HandleState trước physics
+
             if (player.CurrentState == PlayerState.Dashing)
             {
                 player.Bounds.X += (player.FacingLeft ? -1 : 1) * 30;
@@ -189,7 +245,6 @@ namespace Platform_Game_Project
 
             player.Update(GRAVITY, moveDir);
 
-            // Hurtbox để resolve collision
             int offsetX = player.FacingLeft ? 85 : 60;
             int offsetY = 40;
             var b = new Rectangle(
@@ -202,7 +257,8 @@ namespace Platform_Game_Project
             bool onGround = map.ResolveCollision(ref b, ref vel,
                                                   ignoreOneWay: dropThroughTimer > 0);
             player.VelocityY = vel;
-            // Mới
+
+            // Coyote time
             if (onGround)
             {
                 player.IsOnPlatform = true;
@@ -221,31 +277,18 @@ namespace Platform_Game_Project
             player.Bounds.X = b.X - offsetX;
             player.Bounds.Y = b.Y - offsetY;
 
-            player.HandleState(left || right, jump, dash, lightAttack, lightAttack);
-
+            HandleStairStep();
         }
 
         // ════════════════════════════════════════
-        //  STAIR — snap lên bậc thang
+        //  STAIR
         // ════════════════════════════════════════
-        //
-        //  Cầu thang bậc thang (step pattern):
-        //
-        //    ┌──┐
-        //    │  ├──┐          ← mỗi bậc là 1 tile cao
-        //    │  │  ├──┐
-        //    │  │  │  │
-        //
-        //  Polygon trong Tiled có các cạnh ngang (tread) xen kẽ cạnh dọc (riser).
-        //  GetSurfaceYAt() bỏ qua cạnh dọc, chỉ lấy Y của cạnh ngang tại X của player.
-        //  Nếu mặt bậc nằm trong nửa dưới cơ thể → snap player lên đúng vị trí bậc đó.
-        //
         private void HandleStairStep()
         {
             if (player.CurrentState == PlayerState.Climbing) return;
 
             int moveDir = left ? -1 : right ? 1 : 0;
-            if (moveDir == 0 && player.IsOnPlatform) return; // đứng yên trên ground thường
+            if (moveDir == 0 && player.IsOnPlatform) return;
 
             int offX = player.FacingLeft ? 85 : 60;
             int offY = 40;
@@ -255,38 +298,27 @@ namespace Platform_Game_Project
                 player.Bounds.Width - 150,
                 player.Bounds.Height - 40);
 
-            // Dùng mép trước của player (phía đang đi) để query bậc chính xác hơn
             float queryX = moveDir >= 0
-                ? hb.X + hb.Width * 0.75f   // đi phải → lấy mép phải
-                : hb.X + hb.Width * 0.25f;  // đi trái  → lấy mép trái
-
-            // Nếu đứng yên (moveDir == 0 nhưng chưa on platform) dùng giữa
+                ? hb.X + hb.Width * 0.75f
+                : hb.X + hb.Width * 0.25f;
             if (moveDir == 0) queryX = hb.X + hb.Width * 0.5f;
 
-            int snapThreshold = hb.Height; // snap tối đa bằng chiều cao hurtbox (1 body)
+            int snapThreshold = hb.Height;
 
             foreach (var stair in map.Stairs)
             {
-                // Check AABB nhanh — mở rộng thêm 1 tile để bắt trường hợp đang tiếp cận
                 var expandedBounds = new Rectangle(
-                    stair.Bounds.X - 16 * 3,
-                    stair.Bounds.Y - 16 * 3,
-                    stair.Bounds.Width + 32 * 3,
-                    stair.Bounds.Height + 32 * 3);
+                    stair.Bounds.X - 16 * 3, stair.Bounds.Y - 16 * 3,
+                    stair.Bounds.Width + 32 * 3, stair.Bounds.Height + 32 * 3);
 
                 if (!hb.IntersectsWith(expandedBounds)) continue;
 
                 float surfaceY = stair.GetSurfaceYAt(queryX);
                 if (surfaceY == float.MaxValue) continue;
 
-                // Khoảng cách từ đáy hurtbox đến mặt bậc
-                // (+) = bậc nằm trên đáy player (player cần được nâng lên)
-                // (-) = bậc nằm dưới đáy player (player đang lơ lửng trên không)
                 float distToSnap = hb.Bottom - surfaceY;
-
                 if (distToSnap > 0 && distToSnap <= snapThreshold)
                 {
-                    // Snap player lên mặt bậc mượt mà
                     player.Bounds.Y -= (int)MathF.Ceiling(distToSnap);
                     player.VelocityY = 0;
                     player.IsOnPlatform = true;
@@ -296,87 +328,69 @@ namespace Platform_Game_Project
         }
 
         // ════════════════════════════════════════
-        //  LADDER — nhấn E để bắt đầu/dừng leo
+        //  LADDER
         // ════════════════════════════════════════
         private void HandleLadder()
         {
             bool insideLadder = false;
             foreach (var ladder in map.Ladders)
-            {
                 if (player.hurtBox.IntersectsWith(ladder)) { insideLadder = true; break; }
-            }
 
             player.IsOnLadder = insideLadder;
-
-            // Rời khỏi vùng thang → dừng leo tự động
-            if (!insideLadder)
-                player.IsClimbing = false;
-
-            // Nhấn E khi đang trong vùng thang → toggle leo
-            if (interactE && insideLadder)
-                player.IsClimbing = !player.IsClimbing;
+            if (!insideLadder) player.IsClimbing = false;
+            if (interactE && insideLadder) player.IsClimbing = !player.IsClimbing;
         }
 
         // ════════════════════════════════════════
-        //  ONE-WAY
-        //  S  → drop xuống xuyên qua one-way
-        //  Space → nhảy lên xuyên qua (tự động
-        //          vì ResolveCollision chỉ block từ trên xuống)
+        //  ONE-WAY DROP
         // ════════════════════════════════════════
         private void HandleOneWayDropLogic()
         {
             if (dropThroughTimer > 0) { dropThroughTimer--; return; }
-
-            // Nhấn S + đang đứng trên one-way → drop through
             if (!dropDown || !player.IsOnPlatform) return;
 
             int offX = player.FacingLeft ? 85 : 60;
             int offY = 40;
             var hb = new Rectangle(
-                player.Bounds.X + offX,
-                player.Bounds.Y + offY,
-                player.Bounds.Width - 150,
-                player.Bounds.Height - 40);
+                player.Bounds.X + offX, player.Bounds.Y + offY,
+                player.Bounds.Width - 150, player.Bounds.Height - 40);
 
             foreach (var col in map.Colliders)
             {
                 if (!col.IsOneWay) continue;
-                // Đáy player nằm sát đỉnh platform (±6px)
                 if (Math.Abs(hb.Bottom - col.Bounds.Top) <= 6 &&
                     hb.Right > col.Bounds.Left && hb.Left < col.Bounds.Right)
                 {
                     dropThroughTimer = DROP_THROUGH_TICKS;
                     player.IsOnPlatform = false;
-                    player.VelocityY = 3; // nudge nhỏ vượt qua threshold
+                    player.VelocityY = 3;
                     break;
                 }
             }
         }
 
         // ════════════════════════════════════════
-        //  SPIKE — trừ 10 HP/giây
+        //  SPIKE — trừ 1/4 MaxHP + bất tử 1 giây
         // ════════════════════════════════════════
-        private void HandleSpikeDamage()
+        private void HandleSpikeDamage()        // ← FIX: cơ chế cũ → mới
         {
             bool inSpike = false;
             foreach (var spike in map.Spikes)
-            {
                 if (player.hurtBox.IntersectsWith(spike)) { inSpike = true; break; }
-            }
 
             if (inSpike)
             {
-                spikeDamageAccum += SPIKE_DPS * TICK_SECONDS;
-                if (spikeDamageAccum >= 1f)
+                if (!spikeHitThisContact && !player.IsInvincible)
                 {
-                    int dmg = (int)spikeDamageAccum;
-                    spikeDamageAccum -= dmg;
-                    player.TakeDamage(dmg, knockback: 0, enemyFacingLeft: false);
+                    int damage = player.MaxHP / 4;
+                    player.TakeDamage(damage, knockback: 0, enemyFacingLeft: false);
+                    player.SetInvincible(SPIKE_INVINCIBLE_TICKS);
+                    spikeHitThisContact = true;
                 }
             }
             else
             {
-                spikeDamageAccum = 0f;
+                spikeHitThisContact = false;
             }
         }
 
@@ -419,7 +433,6 @@ namespace Platform_Game_Project
         // ════════════════════════════════════════
         private void HandleCombat()
         {
-            // Player đánh enemy
             if (player.IsHitboxActive)
             {
                 foreach (var enemy in enemies)
@@ -447,35 +460,37 @@ namespace Platform_Game_Project
                             || player.CurrentState == PlayerState.DashAttack;
             if (!isAttacking) player.HitEnemiesThisSwing.Clear();
 
-            // Enemy đánh player
             foreach (var enemy in enemies)
             {
-                if (enemy.IsDead || !enemy.IsHitboxActive) continue;
-                if (enemy.HasHitPlayer) continue;
+                if (enemy.IsDead || !enemy.IsHitboxActive || enemy.HasHitPlayer) continue;
                 if (!enemy.ActiveHitbox.IntersectsWith(player.hurtBox)) continue;
 
                 player.TakeDamage(10, 15, enemy.FacingLeft);
                 enemy.HasHitPlayer = true;
                 sfx.Play("player_hurt");
             }
+
+            // ← FIX: reset HasHitPlayer khi enemy kết thúc đòn
+            foreach (var enemy in enemies)
+                if (enemy.CurrentState != EnemyState.Attack) enemy.HasHitPlayer = false;
         }
 
-        // BUFF
+        // ════════════════════════════════════════
+        //  BUFF
+        // ════════════════════════════════════════
         private void TryDropBuff()
         {
             if (rng.Next(100) >= BUFF_DROP_CHANCE) return;
 
-            // Random 3 buff khác nhau từ pool
             var pool = new List<BuffEntry>
-    {
-        new BuffEntry { Label = "DMG", Value = rng.Next(3, 8)  },
-        new BuffEntry { Label = "HP",  Value = rng.Next(15, 30) },
-        new BuffEntry { Label = "KB",  Value = rng.Next(2, 6)  },
-    };
+            {
+                new BuffEntry { Label = "DMG", Value = rng.Next(3,  8)  },
+                new BuffEntry { Label = "HP",  Value = rng.Next(15, 30) },
+                new BuffEntry { Label = "KB",  Value = rng.Next(2,  6)  },
+            };
 
-            // Shuffle để 3 cái không theo thứ tự cố định
             buffChoices = pool.OrderBy(_ => rng.Next()).Take(3).ToList();
-            showBuffPopup = true; // Dừng game, hiện popup
+            showBuffPopup = true;
         }
 
         private void ApplyBuff(BuffEntry buff)
@@ -492,7 +507,9 @@ namespace Platform_Game_Project
             showBuffPopup = false;
         }
 
-        // MAP
+        // ════════════════════════════════════════
+        //  MAP
+        // ════════════════════════════════════════
         private void LoadRandomMap()
         {
             var available = mapPool.Where(m => m != lastMap).ToList();
@@ -512,27 +529,25 @@ namespace Platform_Game_Project
                     player.Bounds = new Rectangle(100, 50, player.Bounds.Width, player.Bounds.Height);
                     enemies.Add(new Slime(800, 50, 3));
                     break;
-
                 case "map2.tmj":
                     player.Bounds = new Rectangle(150, 50, player.Bounds.Width, player.Bounds.Height);
                     enemies.Add(new MeleeSkeleton(800, 50, 2));
                     break;
-
                 case "map3.tmj":
                     player.Bounds = new Rectangle(100, 50, player.Bounds.Width, player.Bounds.Height);
                     enemies.Add(new MeleeSkeleton(700, 50, 2));
                     enemies.Add(new Slime(1200, 50, 3));
                     break;
             }
-
             player.VelocityY = 0;
         }
 
         private void GoToNextMap()
         {
             mapCount++;
+            spikeHitThisContact = false;
             LoadRandomMap();
-            SpawnEnemiesForMap(lastMap); 
+            SpawnEnemiesForMap(lastMap);
         }
 
         private void CheckDoor()
@@ -542,7 +557,7 @@ namespace Platform_Game_Project
         }
 
         // ════════════════════════════════════════
-        //  RESET FRAME INPUT (chỉ sống 1 tick)
+        //  RESET FRAME INPUT
         // ════════════════════════════════════════
         private void ResetFrameInput()
         {
@@ -582,9 +597,6 @@ namespace Platform_Game_Project
             map.DrawDebug(g);
             foreach (var enemy in enemies) enemy.Draw(g);
             player.Draw(g);
-
-            //g.DrawString($"State: {player.CurrentState} | Frame: {player.currentFrame}",
-            //    new Font("Arial", 10), Brushes.White, 10, 10);
 
             ui.Draw(g, player, soul, SOUL_REQUIRED, mapCount, activeBuffs);
             if (showBuffPopup)

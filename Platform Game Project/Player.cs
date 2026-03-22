@@ -23,6 +23,11 @@ namespace Platform_Game_Project
         public bool IsOnLadder = false;
         public bool IsClimbing = false;
 
+        // ── Invincibility (bất tử tạm thời) ──
+        private int invincibleTimer = 0;
+        public bool IsInvincible => invincibleTimer > 0;
+        public void SetInvincible(int ticks) => invincibleTimer = ticks;
+
         public bool IsDeadAnimationDone =>
             CurrentState == PlayerState.Dead &&
             currentFrame == animations[currentAnimKey].Count - 1 &&
@@ -39,7 +44,7 @@ namespace Platform_Game_Project
         private const int DASH_COOLDOWN = 60;
         private const int DASH_DURATION = 7;
 
-        // Dmg
+        // Bonus stats từ buff
         public int BonusDamage = 0;
         public int BonusKnockback = 0;
 
@@ -75,14 +80,13 @@ namespace Platform_Game_Project
             animations["Jumping"] = LoadFolder(Path.Combine(playerPath, "Jump"));
             animations["Falling"] = LoadFolder(Path.Combine(playerPath, "Fall"));
             animations["Dashing"] = LoadFolder(Path.Combine(playerPath, "Dash"));
-            animations["Climbing"] = LoadFolder(Path.Combine(playerPath, "Climb"));
             animations["Hurt"] = LoadFolder(Path.Combine(playerPath, "Hurt"));
             animations["LightAttack"] = LoadFolder(Path.Combine(playerPath, "Light Attack"));
             animations["HeavyAttack"] = LoadFolder(Path.Combine(playerPath, "Heavy Attack"));
             animations["DashAttack"] = LoadFolder(Path.Combine(playerPath, "Dash Attack"));
             animations["Dead"] = LoadFolder(Path.Combine(playerPath, "Dead"));
 
-            // Climb animation — nếu chưa có folder thì dùng Idle làm tạm
+            // Climb: dùng folder Climb nếu có, không thì dùng Idle làm tạm
             string climbPath = Path.Combine(playerPath, "Climb");
             animations["Climbing"] = Directory.Exists(climbPath)
                 ? LoadFolder(climbPath)
@@ -147,6 +151,7 @@ namespace Platform_Game_Project
                     if (IsOnPlatform)
                         TransitionTo(isMoving ? PlayerState.Running : PlayerState.Idle);
                     break;
+
                 case PlayerState.Hurt:
                     if (IsLastFrame())
                         TransitionTo(IsOnPlatform
@@ -176,13 +181,12 @@ namespace Platform_Game_Project
                     break;
 
                 case PlayerState.HeavyAttack:
-
                 case PlayerState.DashAttack:
                     if (IsLastFrame())
                         TransitionTo(isMoving ? PlayerState.Running : PlayerState.Idle);
                     break;
 
-                // Climbing được quản lý bởi Form1, không cần xử lý ở đây
+                // Climbing được quản lý bởi Form1
                 case PlayerState.Climbing:
                     break;
             }
@@ -213,6 +217,8 @@ namespace Platform_Game_Project
         public void TakeDamage(int damage, int knockback, bool enemyFacingLeft)
         {
             if (HP <= 0) return;
+            if (IsInvincible) return;   // ← bảo vệ khi đang bất tử
+
             HP -= damage;
             if (knockback > 0)
                 Bounds.X += enemyFacingLeft ? -knockback : knockback;
@@ -240,13 +246,12 @@ namespace Platform_Game_Project
                 PlayerState.Falling => 6,
                 PlayerState.Jumping => 6,
                 PlayerState.Dashing => 3,
-                PlayerState.Climbing => 4,
+                PlayerState.Climbing => 5,   // chỉ 1 lần duy nhất
                 PlayerState.Hurt => 3,
                 PlayerState.LightAttack => 2,
                 PlayerState.HeavyAttack => 3,
                 PlayerState.DashAttack => 2,
                 PlayerState.Dead => 4,
-                PlayerState.Climbing => 5,
                 _ => 6
             };
         }
@@ -256,6 +261,10 @@ namespace Platform_Game_Project
         public void Update(int gravity, int moveDir)
         {
             if (CurrentState == PlayerState.Dead) { AnimateOnce(); return; }
+
+            // ── Đếm ngược invincibility ──
+            if (invincibleTimer > 0) invincibleTimer--;
+
             Animate();
             UpdateHitbox();
             UpdateHurtbox();
@@ -299,7 +308,9 @@ namespace Platform_Game_Project
             if (!animations.ContainsKey(currentAnimKey) ||
                 animations[currentAnimKey].Count == 0) return;
 
-            DrawImage(g, animations[currentAnimKey][currentFrame]);
+            // ── Nhấp nháy khi bất tử: ẩn mỗi 3 tick ──
+            if (!IsInvincible || (invincibleTimer / 3) % 2 == 0)
+                DrawImage(g, animations[currentAnimKey][currentFrame]);
 
             g.DrawRectangle(Pens.Red, hurtBox);
             g.DrawRectangle(Pens.Cyan, Bounds);
@@ -310,7 +321,6 @@ namespace Platform_Game_Project
             g.FillRectangle(Brushes.LimeGreen, Bounds.X, Bounds.Y - 10,
                             (int)((float)HP / MaxHP * Bounds.Width), 6);
 
-            // Indicator đang leo thang
             if (IsClimbing)
                 g.DrawString("↕", new Font("Arial", 8), Brushes.Yellow,
                              Bounds.X, Bounds.Y - 22);
