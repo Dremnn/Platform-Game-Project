@@ -24,13 +24,16 @@ namespace Platform_Game_Project
             //"map10.tmj",
             "map2.tmj",
             "map3.tmj",
-            //"map4.tmj",
-            //"map5.tmj",
-            //"map6.tmj",
-            //"map7.tmj",
-            //"map8.tmj",
-            //"map9.tmj",
+            "map4.tmj",
+            "map5.tmj",
+            "map6.tmj",
+            "map7.tmj",
+            "map8.tmj", 
+            "map9.tmj",
         };
+
+        //SFX
+        private SoundManager sfx;
 
         private Random rng = new Random();
         private string lastMap = "";
@@ -70,6 +73,7 @@ namespace Platform_Game_Project
             LoadRandomMap();
             SpawnEnemiesForMap(lastMap);
             ui = new UIManager(this.ClientSize.Width);
+            sfx = new SoundManager();
         }
 
 
@@ -193,6 +197,7 @@ namespace Platform_Game_Project
             // QUAN TRỌNG: đồng bộ Bounds từ hurtBox đã resolve
             player.Bounds.X = b.X - offsetX;
             player.Bounds.Y = b.Y - offsetY;
+
         }
 
         private void UpdateEnemies()
@@ -242,6 +247,7 @@ namespace Platform_Game_Project
 
                     enemy.TakeDamage(player.CurrentAttackDamage, player.CurrentAttackKnockback, player.FacingLeft);
                     player.HitEnemiesThisSwing.Add(enemy);
+                    sfx.Play("player_hit");
 
                     if (enemy.IsDead)
                     {
@@ -260,19 +266,13 @@ namespace Platform_Game_Project
             foreach (var enemy in enemies)
             {
                 if (enemy.IsDead || !enemy.IsHitboxActive) continue;
-                if (enemy.HasHitPlayer) continue; // Đã đánh rồi thì bỏ qua
+                if (enemy.HasHitPlayer) continue;
                 if (!enemy.ActiveHitbox.IntersectsWith(player.hurtBox)) continue;
 
                 player.TakeDamage(10, 15, enemy.FacingLeft);
                 enemy.HasHitPlayer = true;
+                sfx.Play("player_hurt");
             }
-
-            //// Reset khi enemy kết thúc đòn attack
-            //foreach (var enemy in enemies)
-            //{
-            //    if (enemy.CurrentState != EnemyState.Attack)
-            //        enemy.HasHitPlayer = false;
-            //}
         }
 
         // BUFF
