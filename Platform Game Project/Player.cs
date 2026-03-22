@@ -85,12 +85,7 @@ namespace Platform_Game_Project
             animations["HeavyAttack"] = LoadFolder(Path.Combine(playerPath, "Heavy Attack"));
             animations["DashAttack"] = LoadFolder(Path.Combine(playerPath, "Dash Attack"));
             animations["Dead"] = LoadFolder(Path.Combine(playerPath, "Dead"));
-
-            // Climb: dùng folder Climb nếu có, không thì dùng Idle làm tạm
-            string climbPath = Path.Combine(playerPath, "Climb");
-            animations["Climbing"] = Directory.Exists(climbPath)
-                ? LoadFolder(climbPath)
-                : animations["Idle"];
+            animations["Climbing"] = LoadFolder(Path.Combine(playerPath, "Climb"));
         }
 
         // ── Dùng bởi Form1 khi đang leo thang ──
@@ -227,7 +222,7 @@ namespace Platform_Game_Project
             else TransitionTo(PlayerState.Hurt);
         }
 
-        private void TransitionTo(PlayerState newState)
+        public void TransitionTo(PlayerState newState)
         {
             if (CurrentState == newState) return;
 
@@ -315,15 +310,6 @@ namespace Platform_Game_Project
             g.DrawRectangle(Pens.Red, hurtBox);
             g.DrawRectangle(Pens.Cyan, Bounds);
             if (IsHitboxActive) g.DrawRectangle(Pens.Yellow, ActiveHitbox);
-
-            // HP bar
-            g.FillRectangle(Brushes.DarkRed, Bounds.X, Bounds.Y - 10, Bounds.Width, 6);
-            g.FillRectangle(Brushes.LimeGreen, Bounds.X, Bounds.Y - 10,
-                            (int)((float)HP / MaxHP * Bounds.Width), 6);
-
-            if (IsClimbing)
-                g.DrawString("↕", new Font("Arial", 8), Brushes.Yellow,
-                             Bounds.X, Bounds.Y - 22);
         }
     }
 }

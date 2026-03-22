@@ -198,32 +198,49 @@ namespace Platform_Game_Project
             // ─── CHẾ ĐỘ LEO THANG ───          // ← FIX: thiếu hoàn toàn trong bản cũ
             if (player.IsClimbing)
             {
+                // Căn giữa player theo thang
+                foreach (var ladder in map.Ladders)
+                {
+                    if (player.hurtBox.IntersectsWith(ladder))
+                    {
+                        int ladderCenterX = ladder.X + ladder.Width / 2;
+                        int playerCenterX = player.hurtBox.X + player.hurtBox.Width / 2;
+                        player.Bounds.X += ladderCenterX - playerCenterX; // Kéo player vào giữa
+                        break;
+                    }
+                }
+
+                // Không cho di chuyển ngang — xóa moveDir
                 int climbSpeed = 4;
-                player.Bounds.X += moveDir * 8;
                 if (climbUp) player.Bounds.Y -= climbSpeed;
                 if (climbDown) player.Bounds.Y += climbSpeed;
 
                 player.VelocityY = 0;
                 player.IsOnPlatform = false;
-
-                if (jump)
-                {
-                    player.IsClimbing = false;
-                    player.VelocityY = -22;
-                }
-
-                player.ForceState(PlayerState.Climbing);
-                player.Update(0, moveDir);
+                player.TransitionTo(PlayerState.Climbing);
+                player.Update(0, 0);
 
                 int offX = player.FacingLeft ? 85 : 60;
                 int offY = 40;
-                var hbClimb = new Rectangle(
-                    player.Bounds.X + offX, player.Bounds.Y + offY,
-                    player.Bounds.Width - 150, player.Bounds.Height - 40);
+                var climbB = new Rectangle(          // đổi b → climbB
+                    player.Bounds.X + offX,
+                    player.Bounds.Y + offY,
+                    player.Bounds.Width - 150,
+                    player.Bounds.Height - 40);
 
-                map.ResolveHorizontalOnly(ref hbClimb);
-                player.Bounds.X = hbClimb.X - offX;
-                player.Bounds.Y = hbClimb.Y - offY;
+                var climbVel = player.VelocityY;     // đổi vel → climbVel
+                bool onGround1 = map.ResolveCollision(ref climbB, ref climbVel, ignoreOneWay: false);
+                player.VelocityY = climbVel;
+
+                if (onGround1 && climbDown)
+                {
+                    player.IsClimbing = false;
+                    player.IsOnPlatform = true;
+                    player.TransitionTo(PlayerState.Idle);
+                }
+
+                player.Bounds.X = climbB.X - offX;
+                player.Bounds.Y = climbB.Y - offY;
                 player.UpdateHurtbox();
                 return;
             }
@@ -337,8 +354,25 @@ namespace Platform_Game_Project
                 if (player.hurtBox.IntersectsWith(ladder)) { insideLadder = true; break; }
 
             player.IsOnLadder = insideLadder;
-            if (!insideLadder) player.IsClimbing = false;
-            if (interactE && insideLadder) player.IsClimbing = !player.IsClimbing;
+
+            // Vào thang khi nhấn W hoặc S trong vùng thang
+            if (insideLadder && (climbUp || climbDown))
+                player.IsClimbing = true;
+
+            // Ra khỏi vùng thang → về Idle
+            if (!insideLadder && player.IsClimbing)
+            {
+                player.IsClimbing = false;
+                player.TransitionTo(PlayerState.Idle);
+            }
+
+            // Nhảy khi đang leo → thoát thang về Jumping
+            if (player.IsClimbing && jump)
+            {
+                player.IsClimbing = false;
+                player.VelocityY = -22;
+                player.TransitionTo(PlayerState.Jumping);
+            }
         }
 
         // ════════════════════════════════════════
@@ -470,9 +504,6 @@ namespace Platform_Game_Project
                 sfx.Play("player_hurt");
             }
 
-            // ← FIX: reset HasHitPlayer khi enemy kết thúc đòn
-            foreach (var enemy in enemies)
-                if (enemy.CurrentState != EnemyState.Attack) enemy.HasHitPlayer = false;
         }
 
         // ════════════════════════════════════════
