@@ -25,20 +25,22 @@ public class MeleeSkeleton : Enemy
         int dx = player.Bounds.X - Bounds.X;
         FacingLeft = dx < 0;
 
+        // Một khi vào DetectRange thì isAggro = true mãi mãi
+        if (DetectRange.IntersectsWith(player.hurtBox))
+            isAggro = true;
+
         switch (CurrentState)
         {
             case EnemyState.Idle:
-                if (DetectRange.IntersectsWith(player.hurtBox))
+                if (isAggro)
                     TransitionTo(EnemyState.Running, "Run", 3);
                 break;
 
             case EnemyState.Running:
                 if (AttackRange.IntersectsWith(player.hurtBox))
-                    TransitionTo(EnemyState.Attack, "Attack", 4); // frameDelay tự kiểm soát ở đây
-                else if (!DetectRange.IntersectsWith(player.hurtBox))
-                    TransitionTo(EnemyState.Idle, "Idle", 4);
+                    TransitionTo(EnemyState.Attack, "Attack", 4);
                 else
-                    Bounds.X += dx > 0 ? moveSpeed : -moveSpeed;
+                    Bounds.X += dx > 0 ? moveSpeed : -moveSpeed; // Luôn đuổi theo
                 break;
 
             case EnemyState.Attack:
@@ -55,6 +57,7 @@ public class MeleeSkeleton : Enemy
                 if (IsLastFrame())
                     TransitionTo(EnemyState.Idle, "Idle", 4);
                 break;
+
             case EnemyState.Dead:
                 return;
         }

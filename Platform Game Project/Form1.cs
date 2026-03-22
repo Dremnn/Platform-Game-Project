@@ -5,7 +5,7 @@ using System.Windows.Forms;
 
 namespace Platform_Game_Project
 {
-    public enum GameScene { Menu, Playing, GameOver }
+    public enum GameScene { Menu, Playing, GameOver, GameClear }
 
     public partial class Form1 : Form
     {
@@ -17,6 +17,35 @@ namespace Platform_Game_Project
         private GameScene currentScene = GameScene.Menu;
 
         private bool left, right, jump, lightAttack, dash;
+        
+        // Map
+        private List<string> mapPool = new List<string>
+        {
+            //"map10.tmj",
+            "map2.tmj",
+            "map3.tmj",
+            //"map4.tmj",
+            //"map5.tmj",
+            //"map6.tmj",
+            //"map7.tmj",
+            //"map8.tmj",
+            //"map9.tmj",
+        };
+
+        private Random rng = new Random();
+        private string lastMap = "";
+
+        // UI
+        private UIManager ui;
+        private int soul = 0;
+        private const int SOUL_REQUIRED = 100;
+        private int mapCount = 0;
+        private List<BuffEntry> activeBuffs = new List<BuffEntry>();
+
+        // Buff
+        private bool showBuffPopup = false;
+        private List<BuffEntry> buffChoices = new List<BuffEntry>();
+        private const int BUFF_DROP_CHANCE = 100; // 50%
 
         public Form1()
         {
@@ -36,18 +65,13 @@ namespace Platform_Game_Project
         // --- Khởi tạo riêng, tách khỏi constructor ---
         private void InitGame()
         {
-            string mapPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory,
-                                          "Assets", "Map", "map3.tmj");
-            map = new TiledMap(mapPath, scale: 3);
-
-            // Spawn thấp hơn để đứng trên ground đầu tiên
-            // Ground đầu tiên trong map2 ở y≈288 * scale3 = 864
+            soul = 0;
             player = new Player(100, 50, 3);
-            enemies = new List<Enemy> { 
-                new Slime(800, 50, 3),
-                new MeleeSkeleton(1000,50,3) 
-            };
+            LoadRandomMap();
+            SpawnEnemiesForMap(lastMap);
+            ui = new UIManager(this.ClientSize.Width);
         }
+
 
         // --- Input ---
         private void Form1_KeyDown(object sender, KeyEventArgs e)
@@ -59,6 +83,16 @@ namespace Platform_Game_Project
                     break;
 
                 case GameScene.Playing:
+                    if (e.KeyCode == Keys.G) enemies.Add(new Slime(100, 50, 3)); ;
+                    if (showBuffPopup)
+                    {
+                        if (e.KeyCode == Keys.D1 && buffChoices.Count > 0) ApplyBuff(buffChoices[0]);
+                        if (e.KeyCode == Keys.D2 && buffChoices.Count > 1) ApplyBuff(buffChoices[1]);
+                        if (e.KeyCode == Keys.D3 && buffChoices.Count > 2) ApplyBuff(buffChoices[2]);
+                        return; // Block input game khi đang chọn buff
+                    }
+                    if (e.KeyCode == Keys.T) soul += 10; // Test
+                    if (e.KeyCode == Keys.B && soul >= SOUL_REQUIRED) enemies.Add(new Boss(100, 50, 3)); ;
                     if (e.KeyCode == Keys.A) left = true;
                     if (e.KeyCode == Keys.D) right = true;
                     if (e.KeyCode == Keys.Space) jump = true;
@@ -90,11 +124,15 @@ namespace Platform_Game_Project
                     break;
 
                 case GameScene.Playing:
-                    UpdatePlayer();
-                    UpdateEnemies();
-                    HandleCombat();
-                    ResetFrameInput();
-                    CheckGameOver();
+                    if (!showBuffPopup) // Pause toàn bộ update khi hiện popup
+                    {
+                        UpdatePlayer();
+                        UpdateEnemies();
+                        HandleCombat();
+                        ResetFrameInput();
+                        CheckGameOver();
+                        CheckDoor();
+                    }
                     break;
 
                 case GameScene.GameOver:
@@ -204,6 +242,12 @@ namespace Platform_Game_Project
 
                     enemy.TakeDamage(player.CurrentAttackDamage, player.CurrentAttackKnockback, player.FacingLeft);
                     player.HitEnemiesThisSwing.Add(enemy);
+
+                    if (enemy.IsDead)
+                    {
+                        soul += 10;
+                        TryDropBuff();
+                    }
                 }
             }
 
@@ -223,12 +267,93 @@ namespace Platform_Game_Project
                 enemy.HasHitPlayer = true;
             }
 
-            // Reset khi enemy kết thúc đòn attack
-            foreach (var enemy in enemies)
+            //// Reset khi enemy kết thúc đòn attack
+            //foreach (var enemy in enemies)
+            //{
+            //    if (enemy.CurrentState != EnemyState.Attack)
+            //        enemy.HasHitPlayer = false;
+            //}
+        }
+
+        // BUFF
+        private void TryDropBuff()
+        {
+            if (rng.Next(100) >= BUFF_DROP_CHANCE) return;
+
+            // Random 3 buff khác nhau từ pool
+            var pool = new List<BuffEntry>
+    {
+        new BuffEntry { Label = "DMG", Value = rng.Next(3, 8)  },
+        new BuffEntry { Label = "HP",  Value = rng.Next(15, 30) },
+        new BuffEntry { Label = "KB",  Value = rng.Next(2, 6)  },
+    };
+
+            // Shuffle để 3 cái không theo thứ tự cố định
+            buffChoices = pool.OrderBy(_ => rng.Next()).Take(3).ToList();
+            showBuffPopup = true; // Dừng game, hiện popup
+        }
+
+        private void ApplyBuff(BuffEntry buff)
+        {
+            switch (buff.Label)
             {
-                if (enemy.CurrentState != EnemyState.Attack)
-                    enemy.HasHitPlayer = false;
+                case "DMG": player.BonusDamage += buff.Value; break;
+                case "HP":
+                    player.MaxHP += buff.Value;
+                    player.HP += buff.Value; break;
+                case "KB": player.BonusKnockback += buff.Value; break;
             }
+            activeBuffs.Add(buff);
+            showBuffPopup = false;
+        }
+
+        // MAP
+        private void LoadRandomMap()
+        {
+            var available = mapPool.Where(m => m != lastMap).ToList();
+            lastMap = available[rng.Next(available.Count)];
+
+            string mapPath = Path.Combine(
+                AppDomain.CurrentDomain.BaseDirectory, "Assets", "Map", lastMap);
+            map = new TiledMap(mapPath, scale: 3);
+        }
+
+        private void SpawnEnemiesForMap(string mapName)
+        {
+            enemies = new List<Enemy>();
+            switch (mapName)
+            {
+                case "map1.tmj":
+                    player.Bounds = new Rectangle(100, 50, player.Bounds.Width, player.Bounds.Height);
+                    enemies.Add(new Slime(800, 50, 3));
+                    break;
+
+                case "map2.tmj":
+                    player.Bounds = new Rectangle(150, 50, player.Bounds.Width, player.Bounds.Height);
+                    enemies.Add(new MeleeSkeleton(800, 50, 2));
+                    break;
+
+                case "map3.tmj":
+                    player.Bounds = new Rectangle(100, 50, player.Bounds.Width, player.Bounds.Height);
+                    enemies.Add(new MeleeSkeleton(700, 50, 2));
+                    enemies.Add(new Slime(1200, 50, 3));
+                    break;
+            }
+
+            player.VelocityY = 0;
+        }
+
+        private void GoToNextMap()
+        {
+            mapCount++;
+            LoadRandomMap();
+            SpawnEnemiesForMap(lastMap); 
+        }
+
+        private void CheckDoor()
+        {
+            if (map.Door.HasValue && player.hurtBox.IntersectsWith(map.Door.Value))
+                GoToNextMap();
         }
 
         // Input dạng "vừa nhấn" chỉ sống 1 tick
@@ -267,8 +392,12 @@ namespace Platform_Game_Project
             foreach (var enemy in enemies) enemy.Draw(g);
             player.Draw(g);
 
-            g.DrawString($"State: {player.CurrentState} | Frame: {player.currentFrame}",
-                new Font("Arial", 10), Brushes.White, 10, 10);
+            //g.DrawString($"State: {player.CurrentState} | Frame: {player.currentFrame}",
+            //    new Font("Arial", 10), Brushes.White, 10, 10);
+
+            ui.Draw(g, player, soul, SOUL_REQUIRED, mapCount, activeBuffs);
+            if (showBuffPopup)
+                ui.DrawBuffPopup(g, buffChoices);
         }
 
         private void DrawGameOver(Graphics g)
