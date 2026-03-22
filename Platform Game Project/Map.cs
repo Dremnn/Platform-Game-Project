@@ -213,16 +213,23 @@ namespace Platform_Game_Project
                     }
                     else
                     {
-                        if (bounds.Y < col.Bounds.Y)
+                        if (bounds.Y < col.Bounds.Y && velocityY >= 0) // Thêm velocityY >= 0
                         {
                             bounds.Y -= inter.Height;
                             velocityY = 0;
                             onGround = true;
                         }
-                        else
+                        else if (bounds.Y >= col.Bounds.Y)
                         {
                             bounds.Y += inter.Height;
                             if (velocityY < 0) velocityY = 0;
+                        }
+                        // Nếu velocityY < 0 và bounds.Y < col.Bounds.Y
+                        // → đang bay lên chạm trần → đẩy ngang thay vì dọc
+                        else
+                        {
+                            if (bounds.X < col.Bounds.X) bounds.X -= inter.Width;
+                            else bounds.X += inter.Width;
                         }
                     }
                 }

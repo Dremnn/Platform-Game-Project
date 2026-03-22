@@ -16,6 +16,8 @@ namespace Platform_Game_Project
         private const int GRAVITY = 2;
         private GameScene currentScene = GameScene.Menu;
 
+        private int coyoteTimer = 0;
+
         private bool left, right, jump, lightAttack, dash;
         
         // Map
@@ -161,8 +163,6 @@ namespace Platform_Game_Project
                 else if (right) { moveDir = 1; player.FacingLeft = false; }
             }
 
-            player.HandleState(left || right, jump, dash, lightAttack, lightAttack);
-
             // Physics
             if (player.CurrentState == PlayerState.Dashing)
             {
@@ -192,11 +192,27 @@ namespace Platform_Game_Project
             var vel = player.VelocityY;
             bool onGround = map.ResolveCollision(ref b, ref vel);
             player.VelocityY = vel;
-            player.IsOnPlatform = onGround;
+            // Mới
+            if (onGround)
+            {
+                player.IsOnPlatform = true;
+                coyoteTimer = 5;
+            }
+            else if (coyoteTimer > 0)
+            {
+                coyoteTimer--;
+                player.IsOnPlatform = true;
+            }
+            else
+            {
+                player.IsOnPlatform = false;
+            }
 
             // QUAN TRỌNG: đồng bộ Bounds từ hurtBox đã resolve
             player.Bounds.X = b.X - offsetX;
             player.Bounds.Y = b.Y - offsetY;
+
+            player.HandleState(left || right, jump, dash, lightAttack, lightAttack);
 
         }
 
