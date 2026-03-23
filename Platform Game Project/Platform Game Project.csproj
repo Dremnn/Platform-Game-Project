@@ -248,13 +248,13 @@
     <None Update="Assets\Enemy\Melee\Slime\Slime_Run.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="Assets\Map\map.tmj">
+    <None Update="Assets\Map\Bossmap.tmj">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="Assets\Map\Tileset.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="Assets\Map\map10.tmj">
+    <None Update="Assets\Map\map1.tmj">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="Assets\Map\map2.tmj">

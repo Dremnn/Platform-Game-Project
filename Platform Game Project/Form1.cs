@@ -39,7 +39,14 @@ namespace Platform_Game_Project
         private List<string> mapPool = new List<string>
         {
             "map6.tmj",
-            "map2.tmj"
+            "map2.tmj",
+            "map1.tmj",
+            "map3.tmj",
+            "map4.tmj",
+            "map5.tmj",
+            "map7.tmj",
+            "map8.tmj",
+            "map9.tmj"
         };
 
         // SFX
@@ -102,7 +109,7 @@ namespace Platform_Game_Project
                     break;
 
                 case GameScene.Playing:
-                    if (e.KeyCode == Keys.G) enemies.Add(new Slime(100, 50, 3));
+                    if (e.KeyCode == Keys.G) enemies.Add(new Boss(100, 50, 3));
                     if (showBuffPopup)
                     {
                         if (e.KeyCode == Keys.D1 && buffChoices.Count > 0) ApplyBuff(buffChoices[0]);
@@ -111,7 +118,7 @@ namespace Platform_Game_Project
                         return;
                     }
                     if (e.KeyCode == Keys.T) soul += 10;
-                    if (e.KeyCode == Keys.B && soul >= SOUL_REQUIRED) enemies.Add(new Boss(100, 50, 3));
+                    if (e.KeyCode == Keys.B && soul >= SOUL_REQUIRED) goToBossMap();
                     if (e.KeyCode == Keys.A) left = true;
                     if (e.KeyCode == Keys.D) right = true;
                     if (e.KeyCode == Keys.W) climbUp = true;
@@ -557,12 +564,43 @@ namespace Platform_Game_Project
                     break;
                 case "map2.tmj":
                     player.Bounds = new Rectangle(150, 50, player.Bounds.Width, player.Bounds.Height);
-                    enemies.Add(new MeleeSkeleton(800, 50, 2));
                     break;
                 case "map3.tmj":
                     player.Bounds = new Rectangle(100, 50, player.Bounds.Width, player.Bounds.Height);
                     enemies.Add(new MeleeSkeleton(700, 50, 2));
                     enemies.Add(new Slime(1200, 50, 3));
+                    break;
+                case "map4.tmj":
+                    player.Bounds = new Rectangle(150, 50, player.Bounds.Width, player.Bounds.Height);
+                    enemies.Add(new Slime(700, 50, 2));
+                    enemies.Add(new MeleeSkeleton(1200, 50, 2));
+                    break;
+                case "map5.tmj":
+                    player.Bounds = new Rectangle(100, 50, player.Bounds.Width, player.Bounds.Height);
+                    enemies.Add(new MeleeSkeleton(700, 50, 2));
+                    enemies.Add(new MeleeSkeleton(1200, 50, 2));
+                    break;
+                case "map6.tmj":
+                    player.Bounds = new Rectangle(150, 50, player.Bounds.Width, player.Bounds.Height);
+                    enemies.Add(new Slime(700, 50, 2));
+                    enemies.Add(new Slime(1200, 50, 3));
+                    break;
+                case "map7.tmj":
+                    player.Bounds = new Rectangle(100, 50, player.Bounds.Width, player.Bounds.Height);
+                    enemies.Add(new MeleeSkeleton(700, 50, 2));
+                    enemies.Add(new Slime(1200, 50, 3));
+                    break;
+                case "map8.tmj":
+                    player.Bounds = new Rectangle(150, 50, player.Bounds.Width, player.Bounds.Height);
+                    enemies.Add(new MeleeSkeleton(700, 50, 2));
+                    enemies.Add(new MeleeSkeleton(1200, 50, 2));
+                    break;
+                case "map9.tmj":
+                    player.Bounds = new Rectangle(100, 50, player.Bounds.Width, player.Bounds.Height);
+                    enemies.Add(new Slime(700, 50, 2));
+                    enemies.Add(new MeleeSkeleton(1200, 50, 2));
+                    break;
+                default:
                     break;
             }
             player.VelocityY = 0;
@@ -580,6 +618,18 @@ namespace Platform_Game_Project
         {
             if (map.Door.HasValue && player.hurtBox.IntersectsWith(map.Door.Value))
                 GoToNextMap();
+        }
+
+        private void goToBossMap()
+        {
+            spikeHitThisContact = false;
+
+            string mapPath = Path.Combine(
+                AppDomain.CurrentDomain.BaseDirectory, "Assets", "Map", "Bossmap.tmj");
+            map = new TiledMap(mapPath, scale: 3);
+
+            player.Bounds = new Rectangle(150, 50, player.Bounds.Width, player.Bounds.Height);
+            enemies.Add(new Boss(800, 50, 5));
         }
 
         // ════════════════════════════════════════
