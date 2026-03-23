@@ -38,15 +38,8 @@ namespace Platform_Game_Project
         // Map
         private List<string> mapPool = new List<string>
         {
-            "map10.tmj",
-            "map2.tmj",
-            "map3.tmj",
-            "map4.tmj",
-            "map5.tmj",
             "map6.tmj",
-            "map7.tmj",
-            "map8.tmj",
-            "map9.tmj",
+            "map2.tmj"
         };
 
         // SFX
