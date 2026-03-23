@@ -281,8 +281,7 @@ namespace Platform_Game_Project
                     if (velocityY < 0) continue; // Đang bay lên → bỏ qua
 
                     // Snap khi đáy player chạm hoặc vừa vượt qua đỉnh platform
-                    if (bounds.Bottom >= col.Bounds.Top &&
-                        bounds.Bottom <= col.Bounds.Top + velocityY + 4)
+                    if (bounds.Bottom - velocityY <= col.Bounds.Top + 4)
                     {
                         bounds.Y = col.Bounds.Top - bounds.Height;
                         velocityY = 0;
@@ -313,7 +312,7 @@ namespace Platform_Game_Project
                         }
                         else
                         {
-                            if (inter.Width <= 2) continue; // Corner check chỉ khi đẩy ngang
+                            //if (inter.Width <= 2) continue; // Corner check chỉ khi đẩy ngang
                             if (bounds.X < col.Bounds.X) bounds.X -= inter.Width;
                             else bounds.X += inter.Width;
                         }

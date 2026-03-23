@@ -18,7 +18,6 @@ namespace Platform_Game_Project
         public bool HasHitPlayer = false;
         protected int moveSpeed = 2;
         protected int detectRangeSize = 300;
-        protected bool isAggro = false;
 
         public bool IsDeadAnimationDone =>
         CurrentState == EnemyState.Dead &&

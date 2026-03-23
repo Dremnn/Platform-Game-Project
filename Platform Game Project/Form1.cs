@@ -36,6 +36,8 @@ namespace Platform_Game_Project
         private const int DROP_THROUGH_TICKS = 15;
 
         // Map
+        private bool isBossMap = false;
+        private bool bossSummoned = false;
         private List<string> mapPool = new List<string>
         {
             "map6.tmj",
@@ -61,6 +63,8 @@ namespace Platform_Game_Project
         private const int SOUL_REQUIRED = 100;
         private int mapCount = 0;
         private List<BuffEntry> activeBuffs = new List<BuffEntry>();
+        private int finalSoul = 0;
+        private int finalMapCount = 0;
 
         // Buff
         private bool showBuffPopup = false;
@@ -70,13 +74,11 @@ namespace Platform_Game_Project
         public Form1()
         {
             InitializeComponent();
-            this.DoubleBuffered = true;
-            InitGame();
-
             this.ClientSize = new Size(30 * 16 * 3, 20 * 16 * 3);
             this.FormBorderStyle = FormBorderStyle.FixedSingle;
             this.MaximizeBox = false;
-
+            InitGame();                          // ui tạo sau khi ClientSize đã đúng
+            this.DoubleBuffered = true;
             gameTimer.Interval = 20;
             gameTimer.Start();
         }
@@ -89,11 +91,12 @@ namespace Platform_Game_Project
             spikeHitThisContact = false;
             dropThroughTimer = 0;
             coyoteTimer = 0;
+            bossSummoned = false;
 
             player = new Player(100, 50, 3);
             LoadRandomMap();
             SpawnEnemiesForMap(lastMap);
-            ui = new UIManager(this.ClientSize.Width);
+            ui = new UIManager(this.ClientSize.Width, this.ClientSize.Height);
             sfx = new SoundManager();
         }
 
@@ -118,7 +121,7 @@ namespace Platform_Game_Project
                         return;
                     }
                     if (e.KeyCode == Keys.T) soul += 10;
-                    if (e.KeyCode == Keys.B && soul >= SOUL_REQUIRED) goToBossMap();
+                    if (e.KeyCode == Keys.B && soul >= SOUL_REQUIRED && !bossSummoned) goToBossMap();
                     if (e.KeyCode == Keys.A) left = true;
                     if (e.KeyCode == Keys.D) right = true;
                     if (e.KeyCode == Keys.W) climbUp = true;
@@ -130,6 +133,11 @@ namespace Platform_Game_Project
                     break;
 
                 case GameScene.GameOver:
+                    if (e.KeyCode == Keys.Enter) StartGame();
+                    if (e.KeyCode == Keys.Escape) GoToMenu();
+                    break;
+
+                case GameScene.GameClear:
                     if (e.KeyCode == Keys.Enter) StartGame();
                     if (e.KeyCode == Keys.Escape) GoToMenu();
                     break;
@@ -165,6 +173,7 @@ namespace Platform_Game_Project
                         ResetFrameInput();
                         CheckGameOver();
                         CheckDoor();
+                        CheckBossClear();
                     }
                     break;
 
@@ -513,6 +522,7 @@ namespace Platform_Game_Project
         // ════════════════════════════════════════
         private void TryDropBuff()
         {
+            if (isBossMap) return;
             if (rng.Next(100) >= BUFF_DROP_CHANCE) return;
 
             var pool = new List<BuffEntry>
@@ -572,7 +582,7 @@ namespace Platform_Game_Project
                     break;
                 case "map4.tmj":
                     player.Bounds = new Rectangle(150, 50, player.Bounds.Width, player.Bounds.Height);
-                    enemies.Add(new Slime(700, 50, 2));
+                    enemies.Add(new Slime(700, 50, 3));
                     enemies.Add(new MeleeSkeleton(1200, 50, 2));
                     break;
                 case "map5.tmj":
@@ -582,7 +592,7 @@ namespace Platform_Game_Project
                     break;
                 case "map6.tmj":
                     player.Bounds = new Rectangle(150, 50, player.Bounds.Width, player.Bounds.Height);
-                    enemies.Add(new Slime(700, 50, 2));
+                    enemies.Add(new Slime(700, 50, 3));
                     enemies.Add(new Slime(1200, 50, 3));
                     break;
                 case "map7.tmj":
@@ -597,7 +607,7 @@ namespace Platform_Game_Project
                     break;
                 case "map9.tmj":
                     player.Bounds = new Rectangle(100, 50, player.Bounds.Width, player.Bounds.Height);
-                    enemies.Add(new Slime(700, 50, 2));
+                    enemies.Add(new Slime(700, 50, 3));
                     enemies.Add(new MeleeSkeleton(1200, 50, 2));
                     break;
                 default:
@@ -608,6 +618,8 @@ namespace Platform_Game_Project
 
         private void GoToNextMap()
         {
+            isBossMap = false; // Đây là map thường, không phải boss map
+
             mapCount++;
             spikeHitThisContact = false;
             LoadRandomMap();
@@ -619,16 +631,30 @@ namespace Platform_Game_Project
             if (map.Door.HasValue && player.hurtBox.IntersectsWith(map.Door.Value))
                 GoToNextMap();
         }
+        private void CheckBossClear()
+        {
+            if (!isBossMap) return;
+            if (enemies.Count == 0)
+            {
+                finalSoul = soul;
+                finalMapCount = mapCount;
+                currentScene = GameScene.GameClear;
+            }
+        }
 
         private void goToBossMap()
         {
             spikeHitThisContact = false;
+            isBossMap = true;
+            bossSummoned = true;
+            soul = 0; // Ẩn nút bằng cách reset soul, UI chỉ show khi soul >= SOUL_REQUIRED
 
             string mapPath = Path.Combine(
                 AppDomain.CurrentDomain.BaseDirectory, "Assets", "Map", "Bossmap.tmj");
             map = new TiledMap(mapPath, scale: 3);
 
             player.Bounds = new Rectangle(150, 50, player.Bounds.Width, player.Bounds.Height);
+            enemies = new List<Enemy>(); // Xóa toàn bộ enemy map cũ
             enemies.Add(new Boss(800, 50, 5));
         }
 
@@ -653,15 +679,13 @@ namespace Platform_Game_Project
                 case GameScene.Menu: DrawMenu(e.Graphics); break;
                 case GameScene.Playing: DrawGame(e.Graphics); break;
                 case GameScene.GameOver: DrawGameOver(e.Graphics); break;
+                case GameScene.GameClear: DrawGameClear(e.Graphics); break;
             }
         }
 
-        private void DrawMenu(Graphics g)
-        {
-            g.Clear(Color.Black);
-            g.DrawString("PRESS ENTER TO START",
-                new Font("Arial", 20), Brushes.White, 300, 200);
-        }
+        private void DrawMenu(Graphics g) => ui.DrawMenu(g);
+        private void DrawGameOver(Graphics g) => ui.DrawGameOver(g, finalSoul, finalMapCount);
+        private void DrawGameClear(Graphics g) => ui.DrawGameClear(g, finalSoul, finalMapCount, activeBuffs.Count);
 
         private void DrawGame(Graphics g)
         {
@@ -674,18 +698,9 @@ namespace Platform_Game_Project
             foreach (var enemy in enemies) enemy.Draw(g);
             player.Draw(g);
 
-            ui.Draw(g, player, soul, SOUL_REQUIRED, mapCount, activeBuffs);
+            ui.Draw(g, player, soul, SOUL_REQUIRED, mapCount, activeBuffs, isBossMap, bossSummoned);
             if (showBuffPopup)
                 ui.DrawBuffPopup(g, buffChoices);
-        }
-
-        private void DrawGameOver(Graphics g)
-        {
-            g.Clear(Color.Black);
-            g.DrawString("GAME OVER",
-                new Font("Arial", 30), Brushes.Red, 300, 150);
-            g.DrawString("ENTER - Retry    ESC - Menu",
-                new Font("Arial", 16), Brushes.White, 250, 250);
         }
 
         // ════════════════════════════════════════
@@ -697,7 +712,11 @@ namespace Platform_Game_Project
         private void CheckGameOver()
         {
             if (player.CurrentState == PlayerState.Dead && player.IsDeadAnimationDone)
+            {
+                finalSoul = soul;
+                finalMapCount = mapCount;
                 currentScene = GameScene.GameOver;
+            }
         }
     }
 }

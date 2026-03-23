@@ -29,22 +29,20 @@ namespace Platform_Game_Project
             int dx = player.Bounds.X - Bounds.X;
             FacingLeft = dx < 0;
 
-            // Một khi vào DetectRange thì isAggro = true mãi mãi
-            if (DetectRange.IntersectsWith(player.hurtBox))
-                isAggro = true;
-
             switch (CurrentState)
             {
                 case EnemyState.Idle:
-                    if (isAggro)
+                    if (DetectRange.IntersectsWith(player.hurtBox))
                         TransitionTo(EnemyState.Running, "Run", 3);
                     break;
 
                 case EnemyState.Running:
                     if (AttackRange.IntersectsWith(player.hurtBox))
                         TransitionTo(EnemyState.Attack, "Attack", 4);
+                    else if (!DetectRange.IntersectsWith(player.hurtBox))
+                        TransitionTo(EnemyState.Idle, "Idle", 4);
                     else
-                        Bounds.X += dx > 0 ? moveSpeed : -moveSpeed; // Luôn đuổi theo
+                        Bounds.X += dx > 0 ? moveSpeed : -moveSpeed;
                     break;
 
                 case EnemyState.Attack:

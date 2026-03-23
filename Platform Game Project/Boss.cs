@@ -24,7 +24,6 @@ namespace Platform_Game_Project
         {
             moveSpeed = MOVE_SPEED_P1;
             detectRangeSize = 9999; // Boss luôn aggro
-            isAggro = true;
             LoadAllAnimations();
         }
 

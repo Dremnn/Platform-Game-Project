@@ -16,6 +16,7 @@ namespace Platform_Game_Project
         private Font pixelFont;
         private Font pixelFontSmall;
         private int screenWidth;
+        private int screenHeight;
 
         // Màu retro
         private static readonly Color C_BORDER = Color.FromArgb(255, 255, 220, 100);
@@ -29,22 +30,24 @@ namespace Platform_Game_Project
         private static readonly Color C_BUFF_HP = Color.FromArgb(220, 200, 40, 40);
         private static readonly Color C_BUFF_KB = Color.FromArgb(220, 50, 120, 220);
 
-        public UIManager(int screenWidth)
+        public UIManager(int screenWidth, int screenHeight)
         {
             this.screenWidth = screenWidth;
+            this.screenHeight = screenHeight;
             pixelFont = new Font("Courier New", 11, FontStyle.Bold);
             pixelFontSmall = new Font("Courier New", 8, FontStyle.Bold);
         }
 
         public void Draw(Graphics g, Player player, int soul, int soulRequired,
-                         int mapCount, List<BuffEntry> buffs)
+                         int mapCount, List<BuffEntry> buffs, bool isBossMap, bool bossSummoned = false)
         {
             DrawHPBar(g, player);
             DrawSoulBar(g, soul, soulRequired);
             DrawMapCounter(g, mapCount);
             DrawBuffList(g, buffs);
 
-            if (soul >= soulRequired)
+            // Chỉ hiện nút khi đủ soul VÀ chưa vào boss map VÀ chưa từng summon
+            if (soul >= soulRequired && !isBossMap && !bossSummoned)
                 DrawSummonButton(g);
         }
 
@@ -275,6 +278,194 @@ namespace Platform_Game_Project
         {
             using var pen = new Pen(C_BORDER, 1);
             g.DrawRectangle(pen, x, y, w, h);
+        }
+
+        public void DrawMenu(Graphics g)
+        {
+            g.Clear(Color.FromArgb(10, 10, 18));
+            int W = screenWidth, H = screenHeight;
+            var gold = Color.FromArgb(200, 168, 75);
+            var goldDim = Color.FromArgb(122, 106, 58);
+            var goldFaint = Color.FromArgb(58, 48, 48);
+            var pen = new Pen(gold, 2);
+            int m = 18;
+            g.DrawLines(pen, new[] { new Point(m + 40, m), new Point(m, m), new Point(m, m + 40) });
+            g.DrawLines(pen, new[] { new Point(W - m - 40, m), new Point(W - m, m), new Point(W - m, m + 40) });
+            g.DrawLines(pen, new[] { new Point(m + 40, H - m), new Point(m, H - m), new Point(m, H - m - 40) });
+            g.DrawLines(pen, new[] { new Point(W - m - 40, H - m), new Point(W - m, H - m), new Point(W - m, H - m - 40) });
+            pen.Dispose();
+
+            string title = "SOULFORGE";
+            var titleFont = new Font("Courier New", 52, FontStyle.Bold);
+            var sz = g.MeasureString(title, titleFont);
+            g.DrawString(title, titleFont, new SolidBrush(gold), (W - sz.Width) / 2, H / 2 - 130);
+
+            // Changed text and pushed down by adjusting the Y offset
+            string sub = "Group 9 project";
+            var subFont = new Font("Courier New", 11, FontStyle.Bold);
+            var subSz = g.MeasureString(sub, subFont);
+            g.DrawString(sub, subFont, new SolidBrush(goldDim), (W - subSz.Width) / 2, H / 2 - 30);
+
+            // Pushed the decorative line down
+            g.FillRectangle(new SolidBrush(Color.FromArgb(128, 200, 168, 75)),
+                (W - 180) / 2, H / 2 - 6, 180, 1);
+
+            string btn = "[ ENTER ]  NEW GAME";
+            var btnFont = new Font("Courier New", 14, FontStyle.Bold);
+            var btnSz = g.MeasureString(btn, btnFont);
+
+            // Pushed the button down 
+            int bx = (int)((W - btnSz.Width) / 2) - 20, by = H / 2 + 20;
+            g.DrawRectangle(new Pen(gold, 1), bx - 10, by - 4, btnSz.Width + 40, btnSz.Height + 8);
+            g.FillRectangle(new SolidBrush(Color.FromArgb(17, 200, 168, 75)),
+                bx - 10, by - 4, btnSz.Width + 40, btnSz.Height + 8);
+            g.DrawString(btn, btnFont, new SolidBrush(Color.FromArgb(232, 208, 112)), bx, by);
+
+            // Removed the WASD / J / SHIFT hints entirely
+
+            // Removed "v0.1" from the string
+            string ver = "PRESS ENTER TO BEGIN";
+            var verSz = g.MeasureString(ver, new Font("Courier New", 10, FontStyle.Regular));
+            g.DrawString(ver, new Font("Courier New", 10, FontStyle.Regular),
+                new SolidBrush(Color.FromArgb(60, 60, 74)), (W - verSz.Width) / 2, H - 40);
+        }
+
+        public void DrawGameOver(Graphics g, int soul, int mapCount) 
+        {
+            g.Clear(Color.FromArgb(10, 10, 18));
+            int W = screenWidth, H = screenHeight;
+            var red = Color.FromArgb(139, 26, 26);
+            var gold = Color.FromArgb(200, 168, 75);
+            g.FillRectangle(new SolidBrush(Color.FromArgb(178, 139, 26, 26)), 0, 0, W, 6);
+
+            var pen = new Pen(red, 2);
+            int m = 18;
+            g.DrawLines(pen, new[] { new Point(m + 40, m), new Point(m, m), new Point(m, m + 40) });
+            g.DrawLines(pen, new[] { new Point(W - m - 40, m), new Point(W - m, m), new Point(W - m, m + 40) });
+            g.DrawLines(pen, new[] { new Point(m + 40, H - m), new Point(m, H - m), new Point(m, H - m - 40) });
+            g.DrawLines(pen, new[] { new Point(W - m - 40, H - m), new Point(W - m, H - m), new Point(W - m, H - m - 40) });
+            pen.Dispose();
+
+            string fallen = "— YOU HAVE FALLEN —";
+            var fallenFont = new Font("Courier New", 11, FontStyle.Bold);
+            var fallenSz = g.MeasureString(fallen, fallenFont);
+            g.DrawString(fallen, fallenFont, new SolidBrush(Color.FromArgb(90, 42, 42)),
+                (W - fallenSz.Width) / 2, H / 2 - 130);
+
+            string title = "GAME OVER";
+            var titleFont = new Font("Courier New", 54, FontStyle.Bold);
+            var titleSz = g.MeasureString(title, titleFont);
+            g.DrawString(title, titleFont, new SolidBrush(red), (W - titleSz.Width) / 2, H / 2 - 100);
+
+            g.FillRectangle(new SolidBrush(Color.FromArgb(153, 139, 26, 26)), W / 2 - 1, H / 2 + 10, 2, 50);
+
+            var statFont = new Font("Courier New", 13, FontStyle.Bold);
+            string s1 = $"SOUL COLLECTED   {soul}";
+            string s2 = $"MAPS CLEARED   {mapCount}";
+            var s1Sz = g.MeasureString(s1, statFont);
+            var s2Sz = g.MeasureString(s2, statFont);
+            // vẽ phần label trắng mờ, phần số màu vàng
+            g.DrawString("SOUL COLLECTED   ", statFont,
+                new SolidBrush(Color.FromArgb(122, 90, 90)), (W - s1Sz.Width) / 2, H / 2 + 70);
+            var labelW = g.MeasureString("SOUL COLLECTED   ", statFont).Width;
+            g.DrawString(soul.ToString(), statFont,
+                new SolidBrush(gold), (W - s1Sz.Width) / 2 + labelW, H / 2 + 70);
+
+            g.DrawString("MAPS CLEARED   ", statFont,
+                new SolidBrush(Color.FromArgb(122, 90, 90)), (W - s2Sz.Width) / 2, H / 2 + 96);
+            var label2W = g.MeasureString("MAPS CLEARED   ", statFont).Width;
+            g.DrawString(mapCount.ToString(), statFont,
+                new SolidBrush(gold), (W - s2Sz.Width) / 2 + label2W, H / 2 + 96);
+
+            g.FillRectangle(new SolidBrush(Color.FromArgb(128, 139, 26, 26)),
+                (W - 180) / 2, H / 2 + 128, 180, 1);
+
+            var btnFont = new Font("Courier New", 13, FontStyle.Bold);
+            string b1 = "[ ENTER ]  RETRY";
+            string b2 = "[ ESC ]  MENU";
+            var b1Sz = g.MeasureString(b1, btnFont);
+            var b2Sz = g.MeasureString(b2, btnFont);
+            int totalW = (int)(b1Sz.Width + b2Sz.Width) + 60;
+            int startX = (W - totalW) / 2;
+            int btnY = H / 2 + 142;
+            g.DrawRectangle(new Pen(Color.FromArgb(136, 139, 26, 26), 1),
+                startX - 10, btnY - 4, b1Sz.Width + 20, b1Sz.Height + 8);
+            g.DrawString(b1, btnFont, new SolidBrush(Color.FromArgb(200, 112, 112)),
+                startX, btnY);
+            int b2X = startX + (int)b1Sz.Width + 60;
+            g.DrawRectangle(new Pen(Color.FromArgb(68, 68, 68, 68), 1),
+                b2X - 10, btnY - 4, b2Sz.Width + 20, b2Sz.Height + 8);
+            g.DrawString(b2, btnFont, new SolidBrush(Color.FromArgb(102, 102, 102)), b2X, btnY);
+        }
+        public void DrawGameClear(Graphics g, int soul, int mapCount, int buffCount) 
+        {
+            g.Clear(Color.FromArgb(10, 10, 18));
+            int W = screenWidth, H = screenHeight;
+            var gold = Color.FromArgb(200, 168, 75);
+            var goldDim = Color.FromArgb(122, 106, 58);
+            var pen = new Pen(gold, 2);
+            int m = 18;
+            g.DrawLines(pen, new[] { new Point(m + 40, m), new Point(m, m), new Point(m, m + 40) });
+            g.DrawLines(pen, new[] { new Point(W - m - 40, m), new Point(W - m, m), new Point(W - m, m + 40) });
+            g.DrawLines(pen, new[] { new Point(m + 40, H - m), new Point(m, H - m), new Point(m, H - m - 40) });
+            g.DrawLines(pen, new[] { new Point(W - m - 40, H - m), new Point(W - m, H - m), new Point(W - m, H - m - 40) });
+            pen.Dispose();
+
+            string stars = "✦       ✦       ✦";
+            var starFont = new Font("Courier New", 11, FontStyle.Regular);
+            var starSz = g.MeasureString(stars, starFont);
+            g.DrawString(stars, starFont, new SolidBrush(Color.FromArgb(68, 200, 168, 75)),
+                (W - starSz.Width) / 2, H / 2 - 148);
+
+            string title = "VICTORY";
+            var titleFont = new Font("Courier New", 58, FontStyle.Bold);
+            var titleSz = g.MeasureString(title, titleFont);
+            g.DrawString(title, titleFont, new SolidBrush(gold), (W - titleSz.Width) / 2, H / 2 - 120);
+
+            string sub = "— THE DARKNESS HAS BEEN VANQUISHED —";
+            var subFont = new Font("Courier New", 11, FontStyle.Bold);
+            var subSz = g.MeasureString(sub, subFont);
+            g.DrawString(sub, subFont, new SolidBrush(goldDim), (W - subSz.Width) / 2, H / 2 - 28);
+
+            g.FillRectangle(new SolidBrush(Color.FromArgb(128, 200, 168, 75)),
+                (W - 180) / 2, H / 2 - 8, 180, 1);
+
+            // Stat box 3 cột
+            int boxW = 360, boxH = 64, boxX = (W - boxW) / 2, boxY = H / 2 + 4;
+            g.DrawRectangle(new Pen(Color.FromArgb(51, 200, 168, 75), 1), boxX, boxY, boxW, boxH);
+            int cellW = boxW / 3;
+            string[] labels = { "SOUL", "MAPS", "BUFFS" };
+            string[] vals = { soul.ToString(), mapCount.ToString(), buffCount.ToString() };
+            var lbFont = new Font("Courier New", 10, FontStyle.Bold);
+            var valFont = new Font("Courier New", 20, FontStyle.Bold);
+            for (int i = 0; i < 3; i++)
+            {
+                int cx = boxX + i * cellW;
+                if (i > 0) g.DrawLine(new Pen(Color.FromArgb(34, 200, 168, 75), 1),
+                    cx, boxY, cx, boxY + boxH);
+                var lbSz = g.MeasureString(labels[i], lbFont);
+                g.DrawString(labels[i], lbFont, new SolidBrush(Color.FromArgb(80, 80, 48)),
+                    cx + (cellW - lbSz.Width) / 2, boxY + 8);
+                var vSz = g.MeasureString(vals[i], valFont);
+                g.DrawString(vals[i], valFont, new SolidBrush(gold),
+                    cx + (cellW - vSz.Width) / 2, boxY + 28);
+            }
+
+            var btnFont = new Font("Courier New", 13, FontStyle.Bold);
+            string b1 = "[ ENTER ]  PLAY AGAIN";
+            string b2 = "[ ESC ]  MENU";
+            var b1Sz = g.MeasureString(b1, btnFont);
+            var b2Sz = g.MeasureString(b2, btnFont);
+            int totalW = (int)(b1Sz.Width + b2Sz.Width) + 60;
+            int startX = (W - totalW) / 2;
+            int btnY = H / 2 + 84;
+            g.DrawRectangle(new Pen(Color.FromArgb(136, 200, 168, 75), 1),
+                startX - 10, btnY - 4, b1Sz.Width + 20, b1Sz.Height + 8);
+            g.DrawString(b1, btnFont, new SolidBrush(gold), startX, btnY);
+            int b2X = startX + (int)b1Sz.Width + 60;
+            g.DrawRectangle(new Pen(Color.FromArgb(68, 68, 68, 68), 1),
+                b2X - 10, btnY - 4, b2Sz.Width + 20, b2Sz.Height + 8);
+            g.DrawString(b2, btnFont, new SolidBrush(Color.FromArgb(102, 102, 102)), b2X, btnY);
         }
     }
 }
