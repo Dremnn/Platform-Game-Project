@@ -579,16 +579,21 @@ namespace Platform_Game_Project
             switch (mapName)
             {
                 case "map1.tmj":
-                    player.Bounds = new Rectangle(100, 50, player.Bounds.Width, player.Bounds.Height);
-                    enemies.Add(new Slime(800, 50, 3));
+                    SetPlayerSpawn(19, 175);
+                    SetSlimeSpawn(130, 175); SetSkeletonSpawn(183, 370); SetSkeletonSpawn(178, 50); SetSlimeSpawn(400, 250);
                     break;
                 case "map2.tmj":
-                    player.Bounds = new Rectangle(150, 50, player.Bounds.Width, player.Bounds.Height);
+                    SetPlayerSpawn(17, 256);
+                    SetSlimeSpawn(300, 220); SetSkeletonSpawn(157, 277); SetSkeletonSpawn(450, 65);
                     break;
                 case "map3.tmj":
-                    player.Bounds = new Rectangle(100, 50, player.Bounds.Width, player.Bounds.Height);
-                    enemies.Add(new MeleeSkeleton(700, 50, 2));
-                    enemies.Add(new Slime(1200, 50, 3));
+                    SetPlayerSpawn(10, 255);
+                    SetSkeletonSpawn(190, 160);
+                    SetSkeletonSpawn(120, 30);
+                    SetSkeletonSpawn(200, 30);
+                    SetSkeletonSpawn(280, 30);
+                    SetSkeletonSpawn(360, 30);
+                    SetSkeletonSpawn(440, 30);
                     break;
                 case "map4.tmj":
                     player.Bounds = new Rectangle(150, 50, player.Bounds.Width, player.Bounds.Height);
@@ -624,6 +629,18 @@ namespace Platform_Game_Project
                     break;
             }
             player.VelocityY = 0;
+        }
+        private void SetPlayerSpawn(int x, int y, int scale = 3)
+        {
+            player.Bounds = new Rectangle(x * scale, y * scale, player.Bounds.Width, player.Bounds.Height);
+        }
+        private void SetSlimeSpawn(int x, int y, int scale = 3)
+        {
+            enemies.Add(new Slime(x * scale, y * scale, 3));
+        }
+        private void SetSkeletonSpawn(int x, int y, int scale = 2)
+        {
+            enemies.Add(new MeleeSkeleton(x * scale, y * scale, 2));
         }
 
         private void GoToNextMap()

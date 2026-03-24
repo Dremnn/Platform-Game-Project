@@ -127,6 +127,39 @@
                  "width":80,
                  "x":192,
                  "y":31
+                }, 
+                {
+                 "height":212,
+                 "id":15,
+                 "name":"",
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":14.6667,
+                 "x":-8,
+                 "y":-3.33333
+                }],
+         "opacity":1,
+         "type":"objectgroup",
+         "visible":true,
+         "x":0,
+         "y":0
+        }, 
+        {
+         "draworder":"topdown",
+         "id":5,
+         "name":"Door",
+         "objects":[
+                {
+                 "height":52.6667,
+                 "id":16,
+                 "name":"",
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":14,
+                 "x":465.333,
+                 "y":202.667
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -149,28 +182,6 @@
                  "width":95.25,
                  "x":352.75,
                  "y":309.5
-                }, 
-                {
-                 "height":221.333,
-                 "id":13,
-                 "name":"",
-                 "rotation":0,
-                 "type":"",
-                 "visible":true,
-                 "width":6,
-                 "x":-4,
-                 "y":-6
-                }, 
-                {
-                 "height":268.667,
-                 "id":14,
-                 "name":"",
-                 "rotation":0,
-                 "type":"",
-                 "visible":true,
-                 "width":3.33333,
-                 "x":478.667,
-                 "y":-9.33333
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -240,8 +251,8 @@
          "x":0,
          "y":0
         }],
- "nextlayerid":5,
- "nextobjectid":15,
+ "nextlayerid":6,
+ "nextobjectid":17,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.11.2",
