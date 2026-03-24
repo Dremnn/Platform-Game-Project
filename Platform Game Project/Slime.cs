@@ -9,7 +9,6 @@ namespace Platform_Game_Project
         public Slime(int x, int y, int scale) : base(x, y, 64, 48, hp: 50, scale)
         {
             moveSpeed = 2;  // Bỏ "int" — gán vào field của Enemy thay vì tạo biến local
-            detectRangeSize = 150;
             LoadAllAnimations();
         }
 
@@ -90,10 +89,10 @@ namespace Platform_Game_Project
                 Bounds.Width - 120, Bounds.Height - 60
             );
             DetectRange = new Rectangle(
-                Bounds.X - detectRangeSize,
-                Bounds.Y - detectRangeSize / 2,
-                Bounds.Width + detectRangeSize * 2,
-                Bounds.Height + detectRangeSize
+                Bounds.X - 400,
+                Bounds.Y - 300 / 2,
+                Bounds.Width + 400 * 2,
+                Bounds.Height + 300
             );
         }
     }

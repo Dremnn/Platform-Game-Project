@@ -120,7 +120,7 @@ namespace Platform_Game_Project
                     break;
 
                 case GameScene.Playing:
-                    if (e.KeyCode == Keys.G) enemies.Add(new Boss(100, 50, 4));
+                    if (e.KeyCode == Keys.G) enemies.Add(new Slime(100, 50, 3));
                     if (showBuffPopup)
                     {
                         if (e.KeyCode == Keys.D1 && buffChoices.Count > 0) ApplyBuff(buffChoices[0]);
