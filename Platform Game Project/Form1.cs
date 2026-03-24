@@ -8,7 +8,7 @@ using System.Windows.Forms;
 
 namespace Platform_Game_Project
 {
-    public enum GameScene { Menu, Playing, GameOver, GameClear }
+    public enum GameScene { Menu, Playing, GameOver, GameClear, Tutorial }
 
     public partial class Form1 : Form
     {
@@ -38,6 +38,7 @@ namespace Platform_Game_Project
         // Map
         private bool isBossMap = false;
         private bool bossSummoned = false;
+        private bool bossCleared = false;
         private List<string> mapPool = new List<string>
         {
             "map6.tmj",
@@ -92,6 +93,8 @@ namespace Platform_Game_Project
             dropThroughTimer = 0;
             coyoteTimer = 0;
             bossSummoned = false;
+            bossCleared = false;
+            isBossMap = false;
 
             player = new Player(100, 50, 3);
             LoadRandomMap();
@@ -109,10 +112,15 @@ namespace Platform_Game_Project
             {
                 case GameScene.Menu:
                     if (e.KeyCode == Keys.Enter) StartGame();
+                    if (e.KeyCode == Keys.T) currentScene = GameScene.Tutorial;
+                    break;
+
+                case GameScene.Tutorial:
+                    if (e.KeyCode == Keys.Escape) GoToMenu();
                     break;
 
                 case GameScene.Playing:
-                    if (e.KeyCode == Keys.G) enemies.Add(new Boss(100, 50, 3));
+                    if (e.KeyCode == Keys.G) enemies.Add(new Boss(100, 50, 4));
                     if (showBuffPopup)
                     {
                         if (e.KeyCode == Keys.D1 && buffChoices.Count > 0) ApplyBuff(buffChoices[0]);
@@ -510,7 +518,9 @@ namespace Platform_Game_Project
                 if (enemy.IsDead || !enemy.IsHitboxActive || enemy.HasHitPlayer) continue;
                 if (!enemy.ActiveHitbox.IntersectsWith(player.hurtBox)) continue;
 
-                player.TakeDamage(10, 15, enemy.FacingLeft);
+                int enemyDmg = (enemy is Boss boss && boss.IsPhase2) ? 20 : 10;
+                int enemyKb = (enemy is Boss b2 && b2.IsPhase2) ? 25 : 15;
+                player.TakeDamage(enemyDmg, enemyKb, enemy.FacingLeft);
                 enemy.HasHitPlayer = true;
                 sfx.Play("player_hurt");
             }
@@ -633,9 +643,10 @@ namespace Platform_Game_Project
         }
         private void CheckBossClear()
         {
-            if (!isBossMap) return;
+            if (!isBossMap || bossCleared) return;
             if (enemies.Count == 0)
             {
+                bossCleared = true;
                 finalSoul = soul;
                 finalMapCount = mapCount;
                 currentScene = GameScene.GameClear;
@@ -655,7 +666,7 @@ namespace Platform_Game_Project
 
             player.Bounds = new Rectangle(150, 50, player.Bounds.Width, player.Bounds.Height);
             enemies = new List<Enemy>(); // Xóa toàn bộ enemy map cũ
-            enemies.Add(new Boss(800, 50, 5));
+            enemies.Add(new Boss(800, 50, 4));
         }
 
         // ════════════════════════════════════════
@@ -677,6 +688,7 @@ namespace Platform_Game_Project
             switch (currentScene)
             {
                 case GameScene.Menu: DrawMenu(e.Graphics); break;
+                case GameScene.Tutorial: DrawTutorial(e.Graphics); break;
                 case GameScene.Playing: DrawGame(e.Graphics); break;
                 case GameScene.GameOver: DrawGameOver(e.Graphics); break;
                 case GameScene.GameClear: DrawGameClear(e.Graphics); break;
@@ -684,6 +696,8 @@ namespace Platform_Game_Project
         }
 
         private void DrawMenu(Graphics g) => ui.DrawMenu(g);
+
+        private void DrawTutorial(Graphics g) => ui.DrawTutorial(g);
         private void DrawGameOver(Graphics g) => ui.DrawGameOver(g, finalSoul, finalMapCount);
         private void DrawGameClear(Graphics g) => ui.DrawGameClear(g, finalSoul, finalMapCount, activeBuffs.Count);
 
@@ -697,6 +711,16 @@ namespace Platform_Game_Project
             map.DrawDebug(g);
             foreach (var enemy in enemies) enemy.Draw(g);
             player.Draw(g);
+
+            // Tạm thời vẽ text để debug
+            foreach (var enemy in enemies)
+            {
+                if (enemy is Boss boss)
+                {
+                    g.DrawString($"FacingLeft: {boss.FacingLeft} | dx: {(player.Bounds.X - boss.Bounds.X)}",
+                        new Font("Arial", 10), Brushes.White, 10, 50);
+                }
+            }
 
             ui.Draw(g, player, soul, SOUL_REQUIRED, mapCount, activeBuffs, isBossMap, bossSummoned);
             if (showBuffPopup)

@@ -22,7 +22,7 @@ public class MeleeSkeleton : Enemy
     public override void UpdateAI(Player player)
     {
         if (IsDead) return;
-        int dx = player.Bounds.X - Bounds.X;
+        int dx = player.Bounds.X - hurtBox.X;
         FacingLeft = dx < 0;
 
         switch (CurrentState)

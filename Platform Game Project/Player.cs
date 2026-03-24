@@ -293,9 +293,9 @@ namespace Platform_Game_Project
         {
             hurtBox = new Rectangle(
                 Bounds.X + (FacingLeft ? 85 : 60),
-                Bounds.Y + 40,
+                Bounds.Y + 30,
                 Bounds.Width - 150,
-                Bounds.Height - 40);
+                Bounds.Height - 30);
         }
 
         public override void Draw(Graphics g)

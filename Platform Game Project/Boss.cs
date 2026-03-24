@@ -9,15 +9,19 @@ namespace Platform_Game_Project
     public class Boss : Enemy
     {
         private BossPhase phase = BossPhase.Phase1;
+        public bool IsPhase2 => phase == BossPhase.Phase2;
+        private int attackCooldown = 0;
 
         // Phase 1
         private const int MOVE_SPEED_P1 = 3;
         private const int ATTACK_RANGE_P1 = 120;
+        private const int ATTACK_COOLDOWN_P1 = 60;
 
         // Phase 2
         private const int MOVE_SPEED_P2 = 6;
         private const int ATTACK_RANGE_P2 = 200; // Tầm xa hơn
         private const int FLY_SPEED = 4;   // Tốc độ bay ngang
+        private const int ATTACK_COOLDOWN_P2 = 30;
 
         public Boss(int x, int y, int scale, int hp = 500)
             : base(x, y, 128, 96, hp, scale)
@@ -44,13 +48,10 @@ namespace Platform_Game_Project
         public override void UpdateAI(Player player)
         {
             if (IsDead) return;
-
-            // Check chuyển phase
             if (phase == BossPhase.Phase1 && HP <= MaxHP / 2)
                 EnterPhase2();
 
-            int dx = player.Bounds.X - Bounds.X;
-            FacingLeft = dx < 0;
+            int dx = player.Bounds.X - hurtBox.X;
 
             switch (phase)
             {
@@ -61,54 +62,76 @@ namespace Platform_Game_Project
 
         private void UpdatePhase1(Player player, int dx)
         {
+            if (attackCooldown > 0) attackCooldown--;
+
             switch (CurrentState)
             {
                 case EnemyState.Idle:
-                    TransitionTo(EnemyState.Running, "Run", 4);
+                    if (attackCooldown <= 0)
+                    {
+                        FacingLeft = dx < 0; // Update hướng khi bắt đầu di chuyển
+                        TransitionTo(EnemyState.Running, "Run", 4);
+                    }
                     break;
 
                 case EnemyState.Running:
+                    FacingLeft = dx < 0; // Luôn nhìn về phía player khi chạy
                     if (AttackRange.IntersectsWith(player.hurtBox))
+                    {
+                        FacingLeft = dx < 0; // Chốt hướng trước khi attack
                         TransitionTo(EnemyState.Attack, "Attack", 5);
+                    }
                     else
                         Bounds.X += dx > 0 ? moveSpeed : -moveSpeed;
                     break;
 
                 case EnemyState.Attack:
+                    // Không update FacingLeft — giữ nguyên hướng đã chốt
                     if (IsLastFrame())
                     {
-                        if (AttackRange.IntersectsWith(player.hurtBox))
-                            TransitionTo(EnemyState.Attack, "Attack", 5);
-                        else
-                            TransitionTo(EnemyState.Running, "Run", 4);
+                        attackCooldown = ATTACK_COOLDOWN_P1;
+                        TransitionTo(EnemyState.Idle, "Idle", 4);
                     }
                     break;
 
                 case EnemyState.Hurt:
                     if (IsLastFrame())
-                        TransitionTo(EnemyState.Running, "Run", 4);
+                        TransitionTo(EnemyState.Idle, "Idle", 4);
                     break;
             }
         }
 
         private void UpdatePhase2(Player player, int dx)
         {
+            if (attackCooldown > 0) attackCooldown--;
+
             switch (CurrentState)
             {
-                case EnemyState.Running: // Dùng Running cho trạng thái Fly
+                case EnemyState.Idle:
+                    if (attackCooldown <= 0)
+                    {
+                        FacingLeft = dx < 0;
+                        TransitionTo(EnemyState.Running, "Fly", 3);
+                    }
+                    break;
+
+                case EnemyState.Running:
+                    FacingLeft = dx < 0; // Luôn nhìn về phía player khi bay
                     if (AttackRange.IntersectsWith(player.hurtBox))
+                    {
+                        FacingLeft = dx < 0; // Chốt hướng trước khi attack
                         TransitionTo(EnemyState.Attack, "Attack2", 3);
+                    }
                     else
-                        Bounds.X += dx > 0 ? FLY_SPEED : -FLY_SPEED; // Bay ngang
+                        Bounds.X += dx > 0 ? FLY_SPEED : -FLY_SPEED;
                     break;
 
                 case EnemyState.Attack:
+                    // Không update FacingLeft
                     if (IsLastFrame())
                     {
-                        if (AttackRange.IntersectsWith(player.hurtBox))
-                            TransitionTo(EnemyState.Attack, "Attack2", 3);
-                        else
-                            TransitionTo(EnemyState.Running, "Fly", 3);
+                        attackCooldown = ATTACK_COOLDOWN_P2;
+                        TransitionTo(EnemyState.Idle, "Idle", 4);
                     }
                     break;
 
@@ -123,8 +146,7 @@ namespace Platform_Game_Project
         {
             phase = BossPhase.Phase2;
             moveSpeed = MOVE_SPEED_P2;
-
-            // Chuyển sang Fly animation
+            attackCooldown = 0; // Reset cooldown khi vào phase 2
             TransitionTo(EnemyState.Running, "Fly", 3);
         }
 
@@ -167,24 +189,24 @@ namespace Platform_Game_Project
             if (phase == BossPhase.Phase1)
             {
                 // Attack1 — hitbox phase 1
-                if (currentFrame >= 4 && currentFrame <= 7)
+                if (currentFrame >= 3 && currentFrame <= 5) 
                 {
                     IsHitboxActive = true;
                     ActiveHitbox = new Rectangle(
-                        Bounds.X + (FacingLeft ? 0 : Bounds.Width - 150),
-                        Bounds.Y + 40, 150, Bounds.Height - 60
+                        Bounds.X + (FacingLeft ? 20 : 200),
+                        Bounds.Y + 170, 300, 80
                     );
                 }
             }
             else
             {
                 // Attack2 — tầm xa hơn phase 2
-                if (currentFrame >= 3 && currentFrame <= 6)
+                if (currentFrame >= 3 && currentFrame <= 7)
                 {
                     IsHitboxActive = true;
                     ActiveHitbox = new Rectangle(
-                        Bounds.X + (FacingLeft ? -50 : Bounds.Width - 100),
-                        Bounds.Y + 20, 200, Bounds.Height - 40
+                        Bounds.X + (FacingLeft ? 10 : 220),
+                        Bounds.Y + 160, 280, 75
                     );
                 }
             }
@@ -193,14 +215,14 @@ namespace Platform_Game_Project
         public override void UpdateHurtbox()
         {
             hurtBox = new Rectangle(
-                Bounds.X + 30, Bounds.Y + 20,
-                Bounds.Width - 60, Bounds.Height - 40
+                Bounds.X + (FacingLeft ? 170 : 165), Bounds.Y + 110,
+                170, 220
             );
             AttackRange = new Rectangle(
-                Bounds.X - 60,
+                Bounds.X + 70,
                 Bounds.Y - 20,
-                Bounds.Width + 60 * 2,
-                Bounds.Height + 20
+                Bounds.Width - 150,
+                Bounds.Height + 20  
             );
             DetectRange = new Rectangle(
                 Bounds.X - 9999, Bounds.Y - 9999,
@@ -210,36 +232,41 @@ namespace Platform_Game_Project
 
         public override void Draw(Graphics g)
         {
-            // Phase 2 — tint màu đỏ để báo hiệu
-            if (phase == BossPhase.Phase2 &&
-                animations.ContainsKey(currentAnimKey) &&
-                animations[currentAnimKey].Count > 0)
-            {
-                // Vẽ bình thường, sau này có thể thêm shader effect
+            // Vẽ sprite như cũ
+            if (animations.ContainsKey(currentAnimKey) && animations[currentAnimKey].Count > 0)
                 DrawImage(g, animations[currentAnimKey][currentFrame]);
-            }
-            else
-            {
-                base.Draw(g);
-                return;
-            }
 
             g.DrawRectangle(Pens.Magenta, hurtBox);
-            g.DrawRectangle(Pens.Orange, AttackRange);
+            g.DrawRectangle(Pens.Cyan, Bounds);
+            g.DrawRectangle(Pens.Yellow, DetectRange);  // Thêm lại
+            g.DrawRectangle(Pens.Orange, AttackRange);  // Thêm lại
             if (IsHitboxActive) g.DrawRectangle(Pens.Red, ActiveHitbox);
 
-            // HP bar to hơn enemy thường
-            int barW = Bounds.Width;
-            g.FillRectangle(Brushes.DarkRed, Bounds.X, Bounds.Y - 14, barW, 8);
-            g.FillRectangle(phase == BossPhase.Phase1 ? Brushes.LimeGreen : Brushes.OrangeRed,
-                Bounds.X, Bounds.Y - 14,
-                (int)((float)HP / MaxHP * barW), 8);
+            // HP bar ở trên giữa màn hình — không phụ thuộc vào Bounds.X
+            int barW = 600, barH = 20;
+            int barX = 1440 / 2 - barW / 2; // Căn giữa màn hình 1440px
+            int barY = 20;
 
-            // Label phase
-            g.DrawString(phase == BossPhase.Phase1 ? "BOSS - Phase 1" : "BOSS - Phase 2 !!",
-                new Font("Courier New", 9, FontStyle.Bold),
+            // Background
+            g.FillRectangle(Brushes.DarkRed, barX, barY, barW, barH);
+
+            // Fill HP
+            g.FillRectangle(
+                phase == BossPhase.Phase1 ? Brushes.LimeGreen : Brushes.OrangeRed,
+                barX, barY,
+                (int)((float)HP / MaxHP * barW), barH);
+
+            // Border
+            g.DrawRectangle(Pens.Gold, barX, barY, barW, barH);
+
+            // Label
+            string label = phase == BossPhase.Phase1 ? "☠ BOSS ☠" : "☠ BOSS - PHASE 2 ☠";
+            var font = new Font("Courier New", 10, FontStyle.Bold);
+            var sz = g.MeasureString(label, font);
+            g.DrawString(label,
+                font,
                 phase == BossPhase.Phase1 ? Brushes.White : Brushes.OrangeRed,
-                Bounds.X, Bounds.Y - 28);
+                barX + (barW - sz.Width) / 2, barY - 18);
         }
     }
 }

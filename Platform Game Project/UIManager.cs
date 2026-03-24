@@ -321,13 +321,72 @@ namespace Platform_Game_Project
                 bx - 10, by - 4, btnSz.Width + 40, btnSz.Height + 8);
             g.DrawString(btn, btnFont, new SolidBrush(Color.FromArgb(232, 208, 112)), bx, by);
 
-            // Removed the WASD / J / SHIFT hints entirely
+            // Nút Tutorial [T]
+            string btnT = "[ T ]  TUTORIAL";
+            var btnTFont = new Font("Courier New", 14, FontStyle.Bold);
+            var btnTSz = g.MeasureString(btnT, btnTFont);
+            int txBtn = (int)((W - btnTSz.Width) / 2) - 20;
+            int tyBtn = H / 2 + 80; // Dưới nút ENTER
+
+            g.DrawRectangle(new Pen(Color.FromArgb(80, 200, 168, 75), 1),
+                txBtn - 10, tyBtn - 4, btnTSz.Width + 40, btnTSz.Height + 8);
+            g.FillRectangle(new SolidBrush(Color.FromArgb(12, 200, 168, 75)),
+                txBtn - 10, tyBtn - 4, btnTSz.Width + 40, btnTSz.Height + 8);
+            g.DrawString(btnT, btnTFont,
+                new SolidBrush(Color.FromArgb(160, 200, 168, 75)), txBtn, tyBtn);
 
             // Removed "v0.1" from the string
             string ver = "PRESS ENTER TO BEGIN";
             var verSz = g.MeasureString(ver, new Font("Courier New", 10, FontStyle.Regular));
             g.DrawString(ver, new Font("Courier New", 10, FontStyle.Regular),
                 new SolidBrush(Color.FromArgb(60, 60, 74)), (W - verSz.Width) / 2, H - 40);
+        }
+
+        public void DrawTutorial(Graphics g)
+        {
+            g.Clear(Color.FromArgb(10, 10, 18));
+            int W = screenWidth, H = screenHeight;
+            var gold = Color.FromArgb(200, 168, 75);
+            var white = Color.FromArgb(200, 200, 200);
+
+            // Title
+            string title = "TUTORIAL";
+            var titleFont = new Font("Courier New", 36, FontStyle.Bold);
+            var titleSz = g.MeasureString(title, titleFont);
+            g.DrawString(title, titleFont, new SolidBrush(gold), (W - titleSz.Width) / 2, 60);
+
+            // Controls
+            var font = new Font("Courier New", 13, FontStyle.Bold);
+            var entries = new[]
+            {
+        ("A / D",       "Move left / right"),
+        ("SPACE",       "Jump"),
+        ("SHIFT",       "Dash"),
+        ("J",           "Light Attack"),
+        ("J + J",       "Heavy Attack (combo)"),
+        ("SHIFT + J",   "Dash Attack"),
+        ("W / S",       "Climb ladder"),
+        ("S",           "Drop through platform"),
+        ("B",           "Summon Boss (need 100 Soul)"),
+    };
+
+            int startY = 150;
+            foreach (var (key, desc) in entries)
+            {
+                var keySz = g.MeasureString(key, font);
+                g.DrawString(key, font, new SolidBrush(gold), W / 2 - 300, startY);
+                g.DrawString("—", font, new SolidBrush(white), W / 2 - 80, startY);
+                g.DrawString(desc, font, new SolidBrush(white), W / 2 - 50, startY);
+                startY += 40;
+            }
+
+            // Back
+            string back = "[ ESC ]  BACK TO MENU";
+            var backFont = new Font("Courier New", 12, FontStyle.Bold);
+            var backSz = g.MeasureString(back, backFont);
+            g.DrawString(back, backFont,
+                new SolidBrush(Color.FromArgb(120, 120, 120)),
+                (W - backSz.Width) / 2, H - 60);
         }
 
         public void DrawGameOver(Graphics g, int soul, int mapCount) 
