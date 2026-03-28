@@ -41,14 +41,14 @@ namespace Platform_Game_Project
         private bool bossCleared = false;
         private List<string> mapPool = new List<string>
         {
-            "map6.tmj",
+            //"map6.tmj",
             "map2.tmj",
-            "map1.tmj",
-            "map3.tmj",
-            "map4.tmj",
-            "map5.tmj",
-            "map7.tmj",
-            "map8.tmj",
+            //"map1.tmj",
+            //"map3.tmj",
+            //"map4.tmj",
+            //"map5.tmj",
+            //"map7.tmj",
+            //"map8.tmj",
             "map9.tmj"
         };
 
@@ -314,6 +314,12 @@ namespace Platform_Game_Project
             player.HandleState(left || right, jump, dash, lightAttack, lightAttack);
 
             HandleStairStep();
+            if (player.Bounds.Y > this.ClientSize.Height + 300
+                && player.CurrentState != PlayerState.Dead)
+            {
+                player.HP = 0;
+                player.TransitionTo(PlayerState.Dead);
+            }
         }
 
         // ════════════════════════════════════════
@@ -358,6 +364,37 @@ namespace Platform_Game_Project
                     player.Bounds.Y -= (int)MathF.Ceiling(distToSnap);
                     player.VelocityY = 0;
                     player.IsOnPlatform = true;
+                    break;
+                }
+            }
+        }
+        private void HandleEnemyStairStep(Enemy enemy)
+        {
+            var hb = enemy.hurtBox;
+            // Query ở giữa hurtbox theo hướng di chuyển
+            int moveDir = enemy.Bounds.X < (hb.X + hb.Width / 2) ? 0 : 0; // default center
+            float queryX = hb.X + hb.Width * 0.5f;
+
+            int snapThreshold = hb.Height;
+
+            foreach (var stair in map.Stairs)
+            {
+                var expandedBounds = new Rectangle(
+                    stair.Bounds.X - 16 * 3, stair.Bounds.Y - 16 * 3,
+                    stair.Bounds.Width + 32 * 3, stair.Bounds.Height + 32 * 3);
+
+                if (!hb.IntersectsWith(expandedBounds)) continue;
+
+                float surfaceY = stair.GetSurfaceYAt(queryX);
+                if (surfaceY == float.MaxValue) continue;
+
+                float distToSnap = hb.Bottom - surfaceY;
+                if (distToSnap > 0 && distToSnap <= snapThreshold)
+                {
+                    int offsetY = enemy.hurtBox.Y - enemy.Bounds.Y;
+                    enemy.Bounds.Y -= (int)MathF.Ceiling(distToSnap);
+                    enemy.VelocityY = 0;
+                    enemy.IsOnPlatform = true;
                     break;
                 }
             }
@@ -475,6 +512,10 @@ namespace Platform_Game_Project
 
                     enemy.Bounds.X = b.X - offsetX;
                     enemy.Bounds.Y = b.Y - offsetY;
+                    HandleEnemyStairStep(enemy);
+
+                    if (enemy.Bounds.Y > this.ClientSize.Height + 300)
+                        enemy.TakeDamage(9999, 0, false);
                 }
             }
 
@@ -584,7 +625,7 @@ namespace Platform_Game_Project
                     break;
                 case "map2.tmj":
                     SetPlayerSpawn(17, 256);
-                    SetSlimeSpawn(300, 220); SetSkeletonSpawn(157, 277); SetSkeletonSpawn(450, 65);
+                    SetSlimeSpawn(300, 200); SetSkeletonSpawn(157, 360); SetSkeletonSpawn(450, 65);
                     break;
                 case "map3.tmj":
                     SetPlayerSpawn(10, 255);
@@ -596,34 +637,43 @@ namespace Platform_Game_Project
                     SetSkeletonSpawn(440, 30);
                     break;
                 case "map4.tmj":
-                    player.Bounds = new Rectangle(150, 50, player.Bounds.Width, player.Bounds.Height);
-                    enemies.Add(new Slime(700, 50, 3));
-                    enemies.Add(new MeleeSkeleton(1200, 50, 2));
+                    SetPlayerSpawn(18, 160);
+                    SetSlimeSpawn(190, 120);
+                    SetSkeletonSpawn(630, 160);
                     break;
                 case "map5.tmj":
-                    player.Bounds = new Rectangle(100, 50, player.Bounds.Width, player.Bounds.Height);
-                    enemies.Add(new MeleeSkeleton(700, 50, 2));
-                    enemies.Add(new MeleeSkeleton(1200, 50, 2));
+                    SetPlayerSpawn(29, 203);
+                    SetSlimeSpawn(39, 98);
+                    SetSkeletonSpawn(256, 239);
+                    SetSkeletonSpawn(320, 112);
                     break;
                 case "map6.tmj":
-                    player.Bounds = new Rectangle(150, 50, player.Bounds.Width, player.Bounds.Height);
-                    enemies.Add(new Slime(700, 50, 3));
-                    enemies.Add(new Slime(1200, 50, 3));
+                    SetPlayerSpawn(10   , 190);
+                    SetSkeletonSpawn(600, 270);
+                    SetSlimeSpawn(200, 150);
+                    SetSlimeSpawn(80, 200);
                     break;
                 case "map7.tmj":
-                    player.Bounds = new Rectangle(100, 50, player.Bounds.Width, player.Bounds.Height);
-                    enemies.Add(new MeleeSkeleton(700, 50, 2));
-                    enemies.Add(new Slime(1200, 50, 3));
+                    SetPlayerSpawn(32, 270);
+                    SetSkeletonSpawn(200, 200);
+                    SetSkeletonSpawn(400, 200);
+                    SetSlimeSpawn(350, 150);
+                    SetSlimeSpawn(400, 50);
+                    SetSkeletonSpawn(400, 50);
+                    SetSkeletonSpawn(300, 50);
                     break;
                 case "map8.tmj":
-                    player.Bounds = new Rectangle(150, 50, player.Bounds.Width, player.Bounds.Height);
-                    enemies.Add(new MeleeSkeleton(700, 50, 2));
-                    enemies.Add(new MeleeSkeleton(1200, 50, 2));
+                    SetPlayerSpawn(25, 220);
+                    SetSlimeSpawn(180, 170);
+                    SetSkeletonSpawn(480, 360);
+                    SetSkeletonSpawn(520, 90);
                     break;
                 case "map9.tmj":
-                    player.Bounds = new Rectangle(100, 50, player.Bounds.Width, player.Bounds.Height);
-                    enemies.Add(new Slime(700, 50, 3));
-                    enemies.Add(new MeleeSkeleton(1200, 50, 2));
+                    SetPlayerSpawn(20, 170);
+                    SetSlimeSpawn(200, 145);
+                    SetSkeletonSpawn(270, 315);
+                    SetSkeletonSpawn(350, 315);
+                    SetSkeletonSpawn(530, 315);
                     break;
                 default:
                     break;

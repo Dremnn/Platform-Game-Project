@@ -5,7 +5,6 @@ public class MeleeSkeleton : Enemy
     public MeleeSkeleton(int x, int y, int scale) : base(x, y, 96, 64, hp: 80, scale)
     {
         moveSpeed = 2;
-        detectRangeSize = 100;
         LoadAllAnimations();
     }
 
@@ -85,10 +84,10 @@ public class MeleeSkeleton : Enemy
         );
         AttackRange = new Rectangle(Bounds.X, Bounds.Y - 30, Bounds.Width, Bounds.Height + 30);
         DetectRange = new Rectangle(
-            Bounds.X - detectRangeSize,
-            Bounds.Y - detectRangeSize / 2,
-            Bounds.Width + detectRangeSize * 2,
-            Bounds.Height + detectRangeSize
+                Bounds.X - 400,
+                Bounds.Y,
+                Bounds.Width + 400 * 2,
+                Bounds.Height
         );
     }
 }
