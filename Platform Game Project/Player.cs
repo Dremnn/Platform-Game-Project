@@ -307,9 +307,9 @@ namespace Platform_Game_Project
             if (!IsInvincible || (invincibleTimer / 3) % 2 == 0)
                 DrawImage(g, animations[currentAnimKey][currentFrame]);
 
-            g.DrawRectangle(Pens.Red, hurtBox);
-            g.DrawRectangle(Pens.Cyan, Bounds);
-            if (IsHitboxActive) g.DrawRectangle(Pens.Yellow, ActiveHitbox);
+            //g.DrawRectangle(Pens.Red, hurtBox);
+            //g.DrawRectangle(Pens.Cyan, Bounds);
+            //if (IsHitboxActive) g.DrawRectangle(Pens.Yellow, ActiveHitbox);
         }
     }
 }

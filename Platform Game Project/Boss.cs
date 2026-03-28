@@ -235,16 +235,15 @@ namespace Platform_Game_Project
             if (animations.ContainsKey(currentAnimKey) && animations[currentAnimKey].Count > 0)
                 DrawImage(g, animations[currentAnimKey][currentFrame]);
 
-            g.DrawRectangle(Pens.Magenta, hurtBox);
-            g.DrawRectangle(Pens.Cyan, Bounds);
-            g.DrawRectangle(Pens.Yellow, DetectRange);  // Thêm lại
-            g.DrawRectangle(Pens.Orange, AttackRange);  // Thêm lại
-            if (IsHitboxActive) g.DrawRectangle(Pens.Red, ActiveHitbox);
+            //g.DrawRectangle(Pens.Magenta, hurtBox);
+            //g.DrawRectangle(Pens.Cyan, Bounds);
+            //g.DrawRectangle(Pens.Yellow, DetectRange);  // Thêm lại
+            //g.DrawRectangle(Pens.Orange, AttackRange);  // Thêm lại
+            //if (IsHitboxActive) g.DrawRectangle(Pens.Red, ActiveHitbox);
 
-            // HP bar ở trên giữa màn hình — không phụ thuộc vào Bounds.X
             int barW = 600, barH = 20;
             int barX = 1440 / 2 - barW / 2; // Căn giữa màn hình 1440px
-            int barY = 20;
+            int barY = 250;
 
             // Background
             g.FillRectangle(Brushes.DarkRed, barX, barY, barW, barH);

@@ -94,10 +94,10 @@ namespace Platform_Game_Project
                 DrawImage(g, animations[currentAnimKey][currentFrame]);
             }
 
-            g.DrawRectangle(Pens.Magenta, hurtBox);
-            g.DrawRectangle(Pens.Yellow, DetectRange);
-            g.DrawRectangle(Pens.Orange, AttackRange);
-            if (IsHitboxActive) g.DrawRectangle(Pens.Red, ActiveHitbox);
+            //g.DrawRectangle(Pens.Magenta, hurtBox);
+            //g.DrawRectangle(Pens.Yellow, DetectRange);
+            //g.DrawRectangle(Pens.Orange, AttackRange);
+            //if (IsHitboxActive) g.DrawRectangle(Pens.Red, ActiveHitbox);
 
             g.FillRectangle(Brushes.DarkRed, Bounds.X, Bounds.Y - 10, Bounds.Width, 6);
             g.FillRectangle(Brushes.LimeGreen, Bounds.X, Bounds.Y - 10,
