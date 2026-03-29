@@ -63,7 +63,6 @@ namespace Platform_Game_Project
                 frameTimer = 0;
                 if (currentFrame < animations[currentAnimKey].Count - 1)
                     currentFrame++;
-                // Không tăng nữa khi đến frame cuối — dừng lại
             }
         }
 
@@ -91,7 +90,6 @@ namespace Platform_Game_Project
             var files = Directory.GetFiles(path, "*.png")
                 .OrderBy(f => {
                     string name = Path.GetFileNameWithoutExtension(f);
-                    // Lấy số ở cuối tên file, ví dụ "Warrior_Death_10" -> 10
                     var match = System.Text.RegularExpressions.Regex.Match(name, @"\d+$");
                     return match.Success ? int.Parse(match.Value) : 0;
                 })
@@ -113,7 +111,6 @@ namespace Platform_Game_Project
                     Bitmap frame = new Bitmap(frameWidth, frameHeight);
                     using (Graphics g = Graphics.FromImage(frame))
                     {
-                        // Cắt phần ảnh tương ứng từ tấm sheet
                         g.DrawImage(fullSheet, new Rectangle(0, 0, frameWidth, frameHeight),
                                     new Rectangle(i * frameWidth, 0, frameWidth, frameHeight),
                                     GraphicsUnit.Pixel);

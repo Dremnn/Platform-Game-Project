@@ -8,7 +8,7 @@ namespace Platform_Game_Project
     {
         public Slime(int x, int y, int scale) : base(x, y, 64, 48, hp: 50, scale)
         {
-            moveSpeed = 2;  // Bỏ "int" — gán vào field của Enemy thay vì tạo biến local
+            moveSpeed = 2; 
             LoadAllAnimations();
         }
 
@@ -32,14 +32,14 @@ namespace Platform_Game_Project
             {
                 case EnemyState.Idle:
                     if (DetectRange.IntersectsWith(player.hurtBox))
-                        TransitionTo(EnemyState.Running, "Run", 3);
+                        TransitionTo(EnemyState.Running, "Run", 5);
                     break;
 
                 case EnemyState.Running:
                     if (AttackRange.IntersectsWith(player.hurtBox))
-                        TransitionTo(EnemyState.Attack, "Attack", 4);
+                        TransitionTo(EnemyState.Attack, "Attack", 5);
                     else if (!DetectRange.IntersectsWith(player.hurtBox))
-                        TransitionTo(EnemyState.Idle, "Idle", 4);
+                        TransitionTo(EnemyState.Idle, "Idle", 5);
                     else
                         Bounds.X += dx > 0 ? moveSpeed : -moveSpeed;
                     break;
@@ -48,15 +48,15 @@ namespace Platform_Game_Project
                     if (IsLastFrame())
                     {
                         if (AttackRange.IntersectsWith(player.hurtBox))
-                            TransitionTo(EnemyState.Attack, "Attack", 4);
+                            TransitionTo(EnemyState.Attack, "Attack", 5);
                         else
-                            TransitionTo(EnemyState.Running, "Run", 3);
+                            TransitionTo(EnemyState.Running, "Run", 5);
                     }
                     break;
 
                 case EnemyState.Hurt:
                     if (IsLastFrame())
-                        TransitionTo(EnemyState.Idle, "Idle", 4);
+                        TransitionTo(EnemyState.Idle, "Idle", 5);
                     break;
 
                 case EnemyState.Dead:

@@ -231,14 +231,13 @@ namespace Platform_Game_Project
 
         public override void Draw(Graphics g)
         {
-            // Vẽ sprite như cũ
             if (animations.ContainsKey(currentAnimKey) && animations[currentAnimKey].Count > 0)
                 DrawImage(g, animations[currentAnimKey][currentFrame]);
 
             //g.DrawRectangle(Pens.Magenta, hurtBox);
             //g.DrawRectangle(Pens.Cyan, Bounds);
-            //g.DrawRectangle(Pens.Yellow, DetectRange);  // Thêm lại
-            //g.DrawRectangle(Pens.Orange, AttackRange);  // Thêm lại
+            //g.DrawRectangle(Pens.Yellow, DetectRange);  
+            //g.DrawRectangle(Pens.Orange, AttackRange);  
             //if (IsHitboxActive) g.DrawRectangle(Pens.Red, ActiveHitbox);
 
             int barW = 600, barH = 20;

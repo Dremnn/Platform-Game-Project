@@ -41,14 +41,14 @@ namespace Platform_Game_Project
         private bool bossCleared = false;
         private List<string> mapPool = new List<string>
         {
-            //"map6.tmj",
+            "map6.tmj",
             "map2.tmj",
-            //"map1.tmj",
-            //"map3.tmj",
-            //"map4.tmj",
-            //"map5.tmj",
-            //"map7.tmj",
-            //"map8.tmj",
+            "map1.tmj",
+            "map3.tmj",
+            "map4.tmj",
+            "map5.tmj",
+            "map7.tmj",
+            "map8.tmj",
             "map9.tmj"
         };
 
@@ -78,7 +78,7 @@ namespace Platform_Game_Project
             this.ClientSize = new Size(30 * 16 * 3, 20 * 16 * 3);
             this.FormBorderStyle = FormBorderStyle.FixedSingle;
             this.MaximizeBox = false;
-            InitGame();                          // ui tạo sau khi ClientSize đã đúng
+            InitGame();                     
             this.DoubleBuffered = true;
             gameTimer.Interval = 20;
             gameTimer.Start();
@@ -103,9 +103,9 @@ namespace Platform_Game_Project
             sfx = new SoundManager();
         }
 
-        // ════════════════════════════════════════
+
         //  INPUT
-        // ════════════════════════════════════════
+
         private void Form1_KeyDown(object sender, KeyEventArgs e)
         {
             switch (currentScene)
@@ -161,12 +161,12 @@ namespace Platform_Game_Project
             if (e.KeyCode == Keys.Space) jump = false;
         }
 
-        // ════════════════════════════════════════
+
         //  GAME LOOP
-        // ════════════════════════════════════════
+
         private void gameTimer_Tick(object sender, EventArgs e)
         {
-            switch (currentScene)           // ← FIX: switch thay vì if
+            switch (currentScene)           
             {
                 case GameScene.Menu:
                     break;
@@ -191,9 +191,9 @@ namespace Platform_Game_Project
             this.Invalidate();
         }
 
-        // ════════════════════════════════════════
+
         //  UPDATE PLAYER
-        // ════════════════════════════════════════
+
         private void UpdatePlayer()
         {
             HandleLadder();
@@ -212,7 +212,7 @@ namespace Platform_Game_Project
                 else if (right) { moveDir = 1; player.FacingLeft = false; }
             }
 
-            // ─── CHẾ ĐỘ LEO THANG ───          // ← FIX: thiếu hoàn toàn trong bản cũ
+            // ─── CHẾ ĐỘ LEO THANG ───        
             if (player.IsClimbing)
             {
                 // Căn giữa player theo thang
@@ -227,7 +227,6 @@ namespace Platform_Game_Project
                     }
                 }
 
-                // Không cho di chuyển ngang — xóa moveDir
                 int climbSpeed = 4;
                 if (climbUp) player.Bounds.Y -= climbSpeed;
                 if (climbDown) player.Bounds.Y += climbSpeed;
@@ -239,13 +238,13 @@ namespace Platform_Game_Project
 
                 int offX = player.FacingLeft ? 85 : 60;
                 int offY = 40;
-                var climbB = new Rectangle(          // đổi b → climbB
+                var climbB = new Rectangle(         
                     player.Bounds.X + offX,
                     player.Bounds.Y + offY,
                     player.Bounds.Width - 150,
                     player.Bounds.Height - 40);
 
-                var climbVel = player.VelocityY;     // đổi vel → climbVel
+                var climbVel = player.VelocityY;  
                 bool onGround1 = map.ResolveCollision(ref climbB, ref climbVel, ignoreOneWay: false);
                 player.VelocityY = climbVel;
 
@@ -263,7 +262,6 @@ namespace Platform_Game_Project
             }
 
             // ─── CHẾ ĐỘ BÌNH THƯỜNG ───
-            // ← FIX: gọi HandleState trước physics
 
             if (player.CurrentState == PlayerState.Dashing)
             {
@@ -291,7 +289,6 @@ namespace Platform_Game_Project
             bool onGround = map.ResolveCollision(ref b, ref vel, ignoreOneWay: dropThroughTimer > 0);
             player.VelocityY = vel;
 
-            // ← Thay đoạn coyote time cũ bằng đoạn này
             if (onGround)
             {
                 player.IsOnPlatform = true;
@@ -322,9 +319,9 @@ namespace Platform_Game_Project
             }
         }
 
-        // ════════════════════════════════════════
+
         //  STAIR
-        // ════════════════════════════════════════
+
         private void HandleStairStep()
         {
             if (player.CurrentState == PlayerState.Climbing) return;
@@ -400,9 +397,9 @@ namespace Platform_Game_Project
             }
         }
 
-        // ════════════════════════════════════════
+
         //  LADDER
-        // ════════════════════════════════════════
+
         private void HandleLadder()
         {
             bool insideLadder = false;
@@ -431,9 +428,9 @@ namespace Platform_Game_Project
             }
         }
 
-        // ════════════════════════════════════════
+
         //  ONE-WAY DROP
-        // ════════════════════════════════════════
+
         private void HandleOneWayDropLogic()
         {
             if (dropThroughTimer > 0) { dropThroughTimer--; return; }
@@ -459,10 +456,10 @@ namespace Platform_Game_Project
             }
         }
 
-        // ════════════════════════════════════════
+
         //  SPIKE — trừ 1/4 MaxHP + bất tử 1 giây
-        // ════════════════════════════════════════
-        private void HandleSpikeDamage()        // ← FIX: cơ chế cũ → mới
+
+        private void HandleSpikeDamage()       
         {
             bool inSpike = false;
             foreach (var spike in map.Spikes)
@@ -484,9 +481,9 @@ namespace Platform_Game_Project
             }
         }
 
-        // ════════════════════════════════════════
+
         //  UPDATE ENEMIES
-        // ════════════════════════════════════════
+
         private void UpdateEnemies()
         {
             foreach (var enemy in enemies)
@@ -522,9 +519,9 @@ namespace Platform_Game_Project
             enemies.RemoveAll(e => e.IsDeadAnimationDone);
         }
 
-        // ════════════════════════════════════════
+
         //  COMBAT
-        // ════════════════════════════════════════
+
         private void HandleCombat()
         {
             if (player.IsHitboxActive)
@@ -568,9 +565,9 @@ namespace Platform_Game_Project
 
         }
 
-        // ════════════════════════════════════════
+
         //  BUFF
-        // ════════════════════════════════════════
+
         private void TryDropBuff()
         {
             if (isBossMap) return;
@@ -601,9 +598,9 @@ namespace Platform_Game_Project
             showBuffPopup = false;
         }
 
-        // ════════════════════════════════════════
+
         //  MAP
-        // ════════════════════════════════════════
+
         private void LoadRandomMap()
         {
             var available = mapPool.Where(m => m != lastMap).ToList();
@@ -695,7 +692,7 @@ namespace Platform_Game_Project
 
         private void GoToNextMap()
         {
-            isBossMap = false; // Đây là map thường, không phải boss map
+            isBossMap = false;
 
             mapCount++;
             spikeHitThisContact = false;
@@ -725,20 +722,20 @@ namespace Platform_Game_Project
             spikeHitThisContact = false;
             isBossMap = true;
             bossSummoned = true;
-            soul = 0; // Ẩn nút bằng cách reset soul, UI chỉ show khi soul >= SOUL_REQUIRED
+            soul = 0; 
 
             string mapPath = Path.Combine(
                 AppDomain.CurrentDomain.BaseDirectory, "Assets", "Map", "Bossmap.tmj");
             map = new TiledMap(mapPath, scale: 3);
 
             player.Bounds = new Rectangle(150, 50, player.Bounds.Width, player.Bounds.Height);
-            enemies = new List<Enemy>(); // Xóa toàn bộ enemy map cũ
+            enemies = new List<Enemy>(); 
             enemies.Add(new Boss(800, 50, 4));
         }
 
-        // ════════════════════════════════════════
+
         //  RESET FRAME INPUT
-        // ════════════════════════════════════════
+
         private void ResetFrameInput()
         {
             dash = false;
@@ -747,9 +744,9 @@ namespace Platform_Game_Project
             dropDown = false;
         }
 
-        // ════════════════════════════════════════
+
         //  RENDER
-        // ════════════════════════════════════════
+
         private void Form1_Paint(object sender, PaintEventArgs e)
         {
             switch (currentScene)
@@ -775,28 +772,16 @@ namespace Platform_Game_Project
             g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.Half;
 
             map.DrawMap(g);
-            map.DrawDebug(g);
             foreach (var enemy in enemies) enemy.Draw(g);
             player.Draw(g);
-
-            // Tạm thời vẽ text để debug
-            foreach (var enemy in enemies)
-            {
-                if (enemy is Boss boss)
-                {
-                    g.DrawString($"FacingLeft: {boss.FacingLeft} | dx: {(player.Bounds.X - boss.Bounds.X)}",
-                        new Font("Arial", 10), Brushes.White, 10, 50);
-                }
-            }
 
             ui.Draw(g, player, soul, SOUL_REQUIRED, mapCount, activeBuffs, isBossMap, bossSummoned);
             if (showBuffPopup)
                 ui.DrawBuffPopup(g, buffChoices);
         }
 
-        // ════════════════════════════════════════
+
         //  SCENE MANAGEMENT
-        // ════════════════════════════════════════
         private void StartGame() { InitGame(); currentScene = GameScene.Playing; }
         private void GoToMenu() { currentScene = GameScene.Menu; }
 

@@ -64,7 +64,6 @@ namespace Platform_Game_Project
         {
             if (CurrentState == EnemyState.Dead)
             {
-                // Chỉ chạy animation, không làm gì khác
                 AnimateOnce();
                 return;
             }

@@ -12,16 +12,11 @@ namespace Platform_Game_Project
         public bool IsOneWay;
     }
 
-    // ── Stair polygon: lưu vertices thật để tính mặt bậc chính xác ──
     public class StairPolygon
     {
         public List<PointF> Vertices = new();
-        public Rectangle Bounds; // AABB để check nhanh
+        public Rectangle Bounds; 
 
-        /// <summary>
-        /// Tìm Y mặt bậc (cạnh ngang cao nhất) tại worldX.
-        /// Trả về float.MaxValue nếu X nằm ngoài phạm vi polygon.
-        /// </summary>
         public float GetSurfaceYAt(float worldX)
         {
             float bestY = float.MaxValue;
@@ -191,9 +186,6 @@ namespace Platform_Game_Project
             => new Rectangle((int)(x * _scale), (int)(y * _scale),
                              Math.Max(1, (int)(w * _scale)), Math.Max(1, (int)(h * _scale)));
 
-        // ────────────────────────────────────────────────────
-        //  DRAW
-        // ────────────────────────────────────────────────────
         public void DrawMap(Graphics g)
         {
             if (_tileset == null) return;
@@ -236,7 +228,6 @@ namespace Platform_Game_Project
             foreach (var col in Colliders)
                 g.DrawRectangle(col.IsOneWay ? Pens.Cyan : Pens.Lime, col.Bounds);
 
-            // Vẽ polygon stair thật (màu cam)
             foreach (var stair in Stairs)
             {
                 if (stair.Vertices.Count < 2) continue;
@@ -246,7 +237,7 @@ namespace Platform_Game_Project
                     var b = stair.Vertices[(i + 1) % stair.Vertices.Count];
                     g.DrawLine(Pens.Orange, a, b);
                 }
-                g.DrawRectangle(Pens.DarkOrange, stair.Bounds); // AABB tham chiếu
+                g.DrawRectangle(Pens.DarkOrange, stair.Bounds); 
             }
 
             foreach (var spike in Spikes)
@@ -257,14 +248,6 @@ namespace Platform_Game_Project
                 g.DrawRectangle(Pens.Gold, Door.Value);
         }
 
-        // ────────────────────────────────────────────────────
-        //  COLLISION RESOLUTION
-        // ────────────────────────────────────────────────────
-
-        /// <summary>
-        /// Resolve collision với Ground và One-Way.
-        /// ignoreOneWay = true khi player đang drop-through.
-        /// </summary>
         public bool ResolveCollision(ref Rectangle bounds, ref int velocityY,
                                      bool ignoreOneWay = false)
         {
@@ -278,9 +261,8 @@ namespace Platform_Game_Project
                 if (col.IsOneWay)
                 {
                     if (ignoreOneWay) continue;
-                    if (velocityY < 0) continue; // Đang bay lên → bỏ qua
+                    if (velocityY < 0) continue; 
 
-                    // Snap khi đáy player chạm hoặc vừa vượt qua đỉnh platform
                     if (bounds.Bottom - velocityY <= col.Bounds.Top + 4)
                     {
                         bounds.Y = col.Bounds.Top - bounds.Height;
@@ -292,7 +274,6 @@ namespace Platform_Game_Project
                 {
                     if (inter.Width < inter.Height)
                     {
-                        // Chỉ bỏ qua corner collision ngang — không ảnh hưởng collision dọc
                         if (inter.Width <= 2) continue;
                         if (bounds.X < col.Bounds.X) bounds.X -= inter.Width;
                         else bounds.X += inter.Width;
@@ -312,7 +293,6 @@ namespace Platform_Game_Project
                         }
                         else
                         {
-                            //if (inter.Width <= 2) continue; // Corner check chỉ khi đẩy ngang
                             if (bounds.X < col.Bounds.X) bounds.X -= inter.Width;
                             else bounds.X += inter.Width;
                         }
@@ -323,9 +303,6 @@ namespace Platform_Game_Project
             return onGround;
         }
 
-        /// <summary>
-        /// Chỉ resolve va chạm ngang (dùng khi leo ladder).
-        /// </summary>
         public void ResolveHorizontalOnly(ref Rectangle bounds)
         {
             foreach (var col in Colliders)
