@@ -70,7 +70,7 @@ namespace Platform_Game_Project
         // Buff
         private bool showBuffPopup = false;
         private List<BuffEntry> buffChoices = new List<BuffEntry>();
-        private const int BUFF_DROP_CHANCE = 100;
+        private const int BUFF_DROP_CHANCE = 50;
 
         public Form1()
         {
