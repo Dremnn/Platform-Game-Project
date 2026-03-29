@@ -76,6 +76,7 @@ namespace Platform_Game_Project
         {
             InitializeComponent();
             this.ClientSize = new Size(30 * 16 * 3, 20 * 16 * 3);
+            this.StartPosition = FormStartPosition.CenterScreen;
             this.FormBorderStyle = FormBorderStyle.FixedSingle;
             this.MaximizeBox = false;
             InitGame();                     
